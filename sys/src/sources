@@ -1,0 +1,10 @@
+TARGETNAME=encdisk
+TARGETPATH=..\obj\$(DDKBUILDENV)
+TARGETTYPE=DRIVER
+INCLUDES=..\inc;..\..\libcrypt\inc
+!if "$(_BUILDARCH)" == "x86"
+TARGETLIBS=$(SDK_LIB_PATH)\wdmsec.lib ..\..\libcrypt\obj\$(DDKBUILDENV)\i386\crypt.lib
+!else
+TARGETLIBS=$(SDK_LIB_PATH)\wdmsec.lib ..\..\libcrypt\obj\$(DDKBUILDENV)\amd64\crypt.lib
+!endif
+SOURCES=encdisk.c encdisk.rc
