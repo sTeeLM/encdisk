@@ -1,30 +1,31 @@
 #include "control.h"
 
+
 INT ProcessFile(HANDLE hFile, 
     PCRYPT_CONTEXT DecryptContext, 
     PCRYPT_CONTEXT EncryptContext)
 {
     
-
     LARGE_INTEGER FileSize;
     LARGE_INTEGER Pos;
-    ULONG  n, i;
+    ULONG b, n, i, j;
     ULONG Index;
+    ULONG ClusterCount = 1024;
     LPBYTE Buffer1 = NULL;
     LPBYTE Buffer2 = NULL;
     DWORD Junk;
     INT Ret = -1;
-    INT Process = 0;
+    double Process = 0.0;
 
 
     // alloc buffer
-    if((Buffer1 = malloc(CRYPT_CLUSTER_SIZE)) == NULL) {
+    if((Buffer1 = malloc(CRYPT_CLUSTER_SIZE * ClusterCount)) == NULL) {
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         PrintLastError("ProcessFile:");
         goto err;
     }
 
-    if((Buffer2 = malloc(CRYPT_CLUSTER_SIZE)) == NULL) {
+    if((Buffer2 = malloc(CRYPT_CLUSTER_SIZE * ClusterCount)) == NULL) {
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         PrintLastError("ProcessFile:");
         goto err;
@@ -37,52 +38,67 @@ INT ProcessFile(HANDLE hFile,
 
     n = (ULONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE);
     Pos.QuadPart = 0;
-
-    // process cluster one by one
-    for(i = 0 ; i < n ; i ++) {
-        Process = (INT)((Pos.QuadPart * 100) / FileSize.QuadPart);
-        PrintMessage("\b\b\b\b\b%d%%", Process);
-        if(!ReadFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE, &Junk, NULL)
-            || Junk != CRYPT_CLUSTER_SIZE) {
+    b = n / ClusterCount;
+    i = 0;
+    
+again:
+    // big block: process big block
+    for(; i < b ; i ++) {
+        if(!ReadFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE * ClusterCount, &Junk, NULL)
+            || Junk != CRYPT_CLUSTER_SIZE * ClusterCount) {
             PrintLastError("ProcessFile:");
             goto err;
         }
-        
-        if(NULL != DecryptContext) {
-            if(CryptDecryptCluster(DecryptContext, Buffer1, Buffer2, i) != CRYPT_OK) {
-                SetLastError(ERROR_INTERNAL_ERROR);
-                PrintLastError("ProcessFile:");
-                goto err;
+        for(j = 0 ; j < ClusterCount; j ++) {
+            Process = (double)(((Pos.QuadPart + j * CRYPT_CLUSTER_SIZE) * 100) / FileSize.QuadPart);
+            PrintMessage("\b\b\b\b\b\b%3.1f%%", Process);
+            if(NULL != DecryptContext) {
+                if(CryptDecryptCluster(DecryptContext, Buffer1 + j * CRYPT_CLUSTER_SIZE,
+                    Buffer2 + j * CRYPT_CLUSTER_SIZE, i * ClusterCount + j) != CRYPT_OK) {
+                    SetLastError(ERROR_INTERNAL_ERROR);
+                    PrintLastError("ProcessFile:");
+                    goto err;
+                }
+            } else {
+                memcpy(Buffer2 + j * CRYPT_CLUSTER_SIZE, Buffer1 + j * CRYPT_CLUSTER_SIZE, CRYPT_CLUSTER_SIZE);
             }
-        } else {
-            memcpy(Buffer2, Buffer1, CRYPT_CLUSTER_SIZE);
-        }
 
-        if(NULL != EncryptContext) {
-            if(CryptEncryptCluster(EncryptContext, Buffer2, Buffer1, i) != CRYPT_OK) {
-                SetLastError(ERROR_INTERNAL_ERROR);
-                PrintLastError("ProcessFile:");
-                goto err;
+
+            if(NULL != EncryptContext) {
+                if(CryptEncryptCluster(EncryptContext, Buffer2 + j * CRYPT_CLUSTER_SIZE, 
+                    Buffer1 + j * CRYPT_CLUSTER_SIZE, i * ClusterCount + j) != CRYPT_OK) {
+                    SetLastError(ERROR_INTERNAL_ERROR);
+                    PrintLastError("ProcessFile:");
+                    goto err;
+                }
+            } else {
+                memcpy(Buffer1+ j * CRYPT_CLUSTER_SIZE, Buffer2 + j * CRYPT_CLUSTER_SIZE, CRYPT_CLUSTER_SIZE);
             }
-        } else {
-            memcpy(Buffer1, Buffer2, CRYPT_CLUSTER_SIZE);
-        }
 
+        }
         if(!SetFilePointerEx(hFile, Pos, NULL, FILE_BEGIN)) {
             PrintLastError("ProcessFile:");
             goto err;
         }
 
-        if(!WriteFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE, &Junk, NULL)
-            ||Junk != CRYPT_CLUSTER_SIZE) {
+        if(!WriteFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE * ClusterCount, &Junk, NULL)
+            ||Junk != CRYPT_CLUSTER_SIZE * ClusterCount) {
             PrintLastError("ProcessFile:");
             goto err;
         }
-        Pos.QuadPart += CRYPT_CLUSTER_SIZE;
+        Pos.QuadPart += CRYPT_CLUSTER_SIZE * ClusterCount;
     }
 
-    Process = 100;
-    PrintMessage("\b\b\b\b\b%d%%\n", Process);
+    // small block: process cluster one by one
+    if(ClusterCount != 1) {
+        i = b * ClusterCount;
+        b = n;
+        ClusterCount = 1;
+        goto again;
+    }
+
+    Process = 100.0;
+    PrintMessage("\b\b\b\b\b\b%3.1f%%\n", Process);
 
     Ret = 0;
 
