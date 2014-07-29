@@ -285,6 +285,7 @@ typedef struct _CLUSTER_BUFFER{
 
 typedef struct _DEVICE_EXTENSION {
     BOOLEAN                     media_in_device;
+    BOOLEAN                     is_encrypt;
     HANDLE                      file_handle;
     ANSI_STRING                 file_name;
     LARGE_INTEGER               file_size;
@@ -410,7 +411,7 @@ DriverEntry (
     CRYPT_XFUN                  xfun;
     /* initialize encrypt */
 
-    KdPrint(("EncDisk: DriverEntry, version %s\n", ENC_DISK_VERSION));
+    KdPrint(("EncDisk: DriverEntry, version %s\n", ENC_DISK_VERSION_STR));
 
     RtlZeroMemory(&xfun, sizeof(xfun));
 
@@ -567,6 +568,8 @@ EncDiskCreateDevice (
     RtlZeroMemory(device_extension, sizeof(DEVICE_EXTENSION));
 
     device_extension->media_in_device = FALSE;
+
+    device_extension->is_encrypt = FALSE;
 
     device_extension->number = Number;
 
@@ -1414,8 +1417,6 @@ DecryptRead(
         KdPrint(("EncDisk: DecryptRead ClusterIndex=%u Begin=%u ToRead=%u Length=%u\n",
             ClusterIndex, Begin, ToRead, Length));
         
-//        Status->Status = STATUS_SUCCESS;
-
         Status->Status = DecryptReadCluster(Extension, P, ClusterIndex, Begin, ToRead);
         if(!NT_SUCCESS(Status->Status)) 
         {
@@ -1456,7 +1457,6 @@ EncryptWrite(
         KdPrint(("EncDisk: EncryptWrite ClusterIndex=%u Begin=%u ToWrite=%u Length=%u\n",
             ClusterIndex, Begin, ToWrite, Length));
 
-        Status->Status = STATUS_SUCCESS;
         Status->Status = EncryptWriteCluster(Extension, P, ClusterIndex, Begin, ToWrite);
         if(!NT_SUCCESS(Status->Status)) 
         {
@@ -1511,7 +1511,9 @@ EncDiskThread (
             &time_out
             );
         /* if time out, flush cache */
-        if(STATUS_TIMEOUT == wait_ret && device_extension->media_in_device) {
+        if(STATUS_TIMEOUT == wait_ret 
+            && device_extension->media_in_device 
+            && device_extension->is_encrypt) {
             KdPrint(("EncDisk: time out, flush cache"));
             FlushBuffer(device_extension);
         }
@@ -1553,13 +1555,27 @@ EncDiskThread (
                 in the CreateOptions parameter to ZwCreateFile, the Length and ByteOffset parameters 
                 to ZwReadFile must be multiples of the sector size.
                 */
-                DecryptRead(
-                    device_extension,
-                    system_buffer, 
-                    io_stack->Parameters.Read.ByteOffset.QuadPart, 
-                    io_stack->Parameters.Read.Length,
-                    &irp->IoStatus
-                    );
+                if(device_extension->is_encrypt) {
+                    DecryptRead(
+                        device_extension,
+                        system_buffer, 
+                        io_stack->Parameters.Read.ByteOffset.QuadPart, 
+                        io_stack->Parameters.Read.Length,
+                        &irp->IoStatus
+                        );
+                } else {
+                    ZwReadFile(
+                        device_extension->file_handle,
+                        NULL,
+                        NULL,
+                        NULL,
+                        &irp->IoStatus,
+                        system_buffer,
+                        io_stack->Parameters.Read.Length,
+                        &io_stack->Parameters.Read.ByteOffset,
+                        NULL
+                        );
+                }
                 /*
                 RtlCopyMemory(system_buffer, buffer, io_stack->Parameters.Read.Length);
                 ExFreePool(buffer);
@@ -1593,13 +1609,27 @@ EncDiskThread (
                 If the preceding call to ZwCreateFile set the CreateOptions flag FILE_NO_INTERMEDIATE_BUFFERING, 
                 the Length and ByteOffset parameters to ZwWriteFile must be an integral of the sector size
                 */
-                 EncryptWrite(
-                    device_extension,
-                    system_buffer, 
-                    io_stack->Parameters.Write.ByteOffset.QuadPart,
-                    io_stack->Parameters.Write.Length,
-                    &irp->IoStatus
-                    );
+                if(device_extension->is_encrypt) {
+                    EncryptWrite(
+                        device_extension,
+                        system_buffer, 
+                        io_stack->Parameters.Write.ByteOffset.QuadPart,
+                        io_stack->Parameters.Write.Length,
+                        &irp->IoStatus
+                        );
+                } else {
+                    ZwWriteFile(
+                        device_extension->file_handle,
+                        NULL,
+                        NULL,
+                        NULL,
+                        &irp->IoStatus,
+                        system_buffer,
+                        io_stack->Parameters.Write.Length,
+                        &io_stack->Parameters.Write.ByteOffset,
+                        NULL
+                        );
+                }
   
                 break;
 
@@ -1678,6 +1708,7 @@ EncDiskOpenFile (
 
     device_extension->cache.dirty = FALSE;
     device_extension->cache.valid = FALSE;
+    device_extension->is_encrypt = open_file_information->IsEncrypt;
 
     if(NULL == device_extension->file_name.Buffer) {
         status = STATUS_INSUFFICIENT_RESOURCES;
@@ -1689,10 +1720,11 @@ EncDiskOpenFile (
         &open_file_information->Key,
         sizeof(open_file_information->Key)
         );
-
-    if(CryptRestoreContext(&device_extension->context) != CRYPT_OK) {
-        status = STATUS_INTERNAL_ERROR;
-        goto err;
+    if(device_extension->is_encrypt) {
+        if(CryptRestoreContext(&device_extension->context) != CRYPT_OK) {
+            status = STATUS_INTERNAL_ERROR;
+            goto err;
+        }
     }
 
     RtlCopyMemory(
@@ -1826,8 +1858,11 @@ err:
         }
         RtlZeroMemory(&device_extension->context.key, 
             sizeof(&device_extension->context.key));
-        CryptCleanupContext(&device_extension->context);
+        if(device_extension->is_encrypt) {
+            CryptCleanupContext(&device_extension->context);
+        }
         device_extension->media_in_device = FALSE;
+        device_extension->is_encrypt = FALSE;
     }
     return status;
 }
@@ -1865,6 +1900,8 @@ EncDiskCloseFile (
     }
 
     device_extension->media_in_device = FALSE;
+
+    device_extension->is_encrypt = FALSE;
     
     if(NULL != Irp)
     {

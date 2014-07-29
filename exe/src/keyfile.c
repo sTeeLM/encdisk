@@ -106,6 +106,7 @@ PCRYPT_CONTEXT ReadKeyFile(
     LARGE_INTEGER Size;
     ULONG Junk;
     SIZE_T NewSize;
+    INT Ret = -1;
 
     // alloc buffer
     if((KeyBuffer = malloc(sizeof(CRYPT_CONTEXT))) == NULL) {
@@ -158,7 +159,7 @@ PCRYPT_CONTEXT ReadKeyFile(
     if((UnformatBuffer = UnformatKey(Buffer, Size.LowPart, &NewSize)) == NULL) {
         free(KeyBuffer);
         KeyBuffer = NULL;
-        PrintMessage("%s\n", "ReadKeyFile: %s invalid key file or invalid password", FileName);
+        PrintMessage("ReadKeyFile: %s invalid key file or invalid password", FileName);
         goto err;
     }
 
@@ -166,7 +167,7 @@ PCRYPT_CONTEXT ReadKeyFile(
     if(CryptDecodeKey(UnformatBuffer, &KeyBuffer->key, Pass, (ULONG)NewSize) != CRYPT_OK) {
         free(KeyBuffer);
         KeyBuffer = NULL;
-        PrintMessage("%s\n", "ReadKeyFile: %s invalid key file or invalid password", FileName);
+        PrintMessage("ReadKeyFile: %s invalid key file or invalid password", FileName);
         goto err;
     }
 
@@ -177,8 +178,14 @@ PCRYPT_CONTEXT ReadKeyFile(
         PrintLastError("ReadKeyFile:");
         goto err;
     }
-
+    Ret = 0;
 err:
+    if(Ret != 0) {
+        if(NULL != KeyBuffer) {
+            free(KeyBuffer);
+            KeyBuffer = NULL;
+        }
+    }
     if(NULL != Buffer) {
         free(Buffer);
         Buffer = NULL;

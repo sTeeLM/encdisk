@@ -4,7 +4,8 @@ INT
 EncDiskRekey(
     CHAR* FileName, 
     CHAR* OldPrivateKey, 
-    CHAR* NewPrivateKey
+    CHAR* NewPrivateKey,
+    INT ThreadNum
 )
 {
     PCRYPT_CONTEXT ContextDecrypt = NULL;
@@ -49,7 +50,8 @@ EncDiskRekey(
         PrintLastError("EncDiskRekey:");
         goto err;
     }
-
+    CloseHandle(hFile);
+    hFile = INVALID_HANDLE_VALUE;
     // file size should be n * CRYPT_CLUSTER_SIZE
 
     if(FileSize.QuadPart % CRYPT_CLUSTER_SIZE != 0) {
@@ -57,7 +59,7 @@ EncDiskRekey(
         goto err;
     }
 
-    if(ProcessFile(hFile, ContextDecrypt, ContextEncrypt)!= 0) {
+    if(ProcessFile(FileName, ContextDecrypt, ContextEncrypt, ThreadNum)!= 0) {
         goto err;
     }
     

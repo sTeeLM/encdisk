@@ -1,6 +1,6 @@
 #include "control.h"
 
-INT EncDiskDecrypt(const CHAR * FileName, const CHAR * PrivateKey)
+INT EncDiskDecrypt(const CHAR * FileName, const CHAR * PrivateKey, INT ThreadNum)
 {
     PCRYPT_CONTEXT Context = NULL;
     CHAR * Pass = NULL;
@@ -34,7 +34,9 @@ INT EncDiskDecrypt(const CHAR * FileName, const CHAR * PrivateKey)
         PrintLastError("EncDiskDecrypt:");
         goto err;
     }
-
+    
+    CloseHandle(hFile);
+    hFile = INVALID_HANDLE_VALUE;
     // file size should be n * CRYPT_CLUSTER_SIZE
 
     if(FileSize.QuadPart % CRYPT_CLUSTER_SIZE != 0) {
@@ -42,7 +44,7 @@ INT EncDiskDecrypt(const CHAR * FileName, const CHAR * PrivateKey)
         goto err;
     }
 
-    if(ProcessFile(hFile, Context, NULL)!= 0) {
+    if(ProcessFile(FileName, Context, NULL, ThreadNum)!= 0) {
         goto err;
     }
     

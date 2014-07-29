@@ -30,7 +30,7 @@
 #define _T(x)   __T(x)
 #endif
 
-#define ENC_DISK_VERSION   "1.0.0.0"
+#include "encdisk_version.h"
 
 #define DEVICE_BASE_NAME    _T("\\EncDisk")
 #define DEVICE_DIR_NAME     _T("\\Device")      DEVICE_BASE_NAME
@@ -49,6 +49,7 @@ typedef struct _OPEN_FILE_INFORMATION {
     UCHAR           DriveLetter;
     USHORT          FileNameLength;
     CRYPT_KEY       Key;
+    BOOLEAN         IsEncrypt;
     UCHAR           FileName[1];
 } OPEN_FILE_INFORMATION, *POPEN_FILE_INFORMATION;
 

@@ -23,18 +23,22 @@ PCRYPT_CONTEXT ReadKeyFile(
 
 INT EncDiskEncrypt(
     const CHAR * FileName, 
-    const CHAR * PrivateKey
+    const CHAR * PrivateKey,
+    INT ThreadNum
 );
 
 INT EncDiskDecrypt(
     const CHAR * FileName, 
-    const CHAR * PrivateKey
+    const CHAR * PrivateKey,
+    INT ThreadNum
 );
 
+#define ENC_DEFAULT_THREAD_NUM 4
 INT ProcessFile(
-    HANDLE hFile, 
+    const CHAR * FileName, 
     PCRYPT_CONTEXT DecryptContext, 
-    PCRYPT_CONTEXT EncryptContext
+    PCRYPT_CONTEXT EncryptContext,
+    ULONG ThreadNum
 );
 
 INT WriteKeyFile(
@@ -57,7 +61,8 @@ INT
 EncDiskRekey(
     CHAR* FileName, 
     CHAR* OldPrivateKey, 
-    CHAR* NewPrivateKey
+    CHAR* NewPrivateKey,
+    INT ThreadNum
 );
 
 INT 

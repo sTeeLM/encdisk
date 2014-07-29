@@ -3,7 +3,7 @@ TARGETPATH=..\obj\$(DDKBUILDENV)
 TARGETTYPE=PROGRAM
 UMTYPE=console
 USE_MSVCRT=1
-INCLUDES=..\inc;..\..\libcrypt\inc
+INCLUDES=..\inc;..\..\sys\inc;..\..\libcrypt\inc;
 !if "$(_BUILDARCH)" == "x86"
 TARGETLIBS=$(SDK_LIB_PATH)\shell32.lib ..\..\libcrypt\obj\$(DDKBUILDENV)\i386\crypt.lib
 !else

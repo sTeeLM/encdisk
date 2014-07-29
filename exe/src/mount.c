@@ -33,15 +33,19 @@ EncDiskMount(
         sizeof(OPEN_FILE_INFORMATION) + strlen(FileName) + 7
     );
 
-    // ask pass
-    if((Pass = AskPass(CHECK_PASS, "Enter the password for the key:", NULL)) == NULL) {
-        goto err;
-    }
+    if(NULL != PrivateKey) {
+        // ask pass
+        if((Pass = AskPass(CHECK_PASS, "Enter the password for the key:", NULL)) == NULL) {
+            goto err;
+        }
 
-    if((Context = ReadKeyFile(PrivateKey, Pass)) == NULL) {
-        goto err;
+        if((Context = ReadKeyFile(PrivateKey, Pass)) == NULL) {
+            goto err;
+        }
+        OpenFileInformation->IsEncrypt = TRUE;
+    } else {
+        OpenFileInformation->IsEncrypt = FALSE;
     }
-
 
     // \Device\Harddisk0\Partition1\path\filedisk.img
     if (FileName[0] == '\\' && FileName[1] == '\\') 
@@ -60,7 +64,9 @@ EncDiskMount(
 
     OpenFileInformation->FileNameLength = (USHORT)strlen(OpenFileInformation->FileName);
 
-    memcpy(&OpenFileInformation->Key, &Context->key, sizeof(OpenFileInformation->Key));
+    if(NULL != PrivateKey) {
+        memcpy(&OpenFileInformation->Key, &Context->key, sizeof(OpenFileInformation->Key));
+    }
 
     Device = CreateFile(
         VolumeName,
