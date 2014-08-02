@@ -27,11 +27,6 @@
    #define LTC_FAST_TYPE    ULONG
 #endif
 
-/* detects MIPS R5900 processors (PS2) */
-#if (defined(__R5900) || defined(R5900) || defined(__R5900__)) && (defined(_mips) || defined(__mips__) || defined(mips))
-   #define ENDIAN_LITTLE
-   #define ENDIAN_64BITWORD
-#endif
 
 /* detect amd64 */
 #if !defined(__STRICT_ANSI__) && defined(__x86_64__)
@@ -39,24 +34,6 @@
    #define ENDIAN_64BITWORD
    #define LTC_FAST
    #define LTC_FAST_TYPE    ULONG
-#endif
-
-/* detect PPC32 */
-#if !defined(__STRICT_ANSI__) && defined(LTC_PPC32)
-   #define ENDIAN_BIG
-   #define ENDIAN_32BITWORD
-   #define LTC_FAST
-   #define LTC_FAST_TYPE    ULONG
-#endif   
-
-/* detect sparc and sparc64 */
-#if defined(__sparc__)
-  #define ENDIAN_BIG
-  #if defined(__arch64__)
-    #define ENDIAN_64BITWORD
-  #else
-    #define ENDIAN_32BITWORD
-  #endif
 #endif
 
 
@@ -77,12 +54,6 @@
    #define LTC_NO_ROLC
 	#define LTC_NO_BSWAP
 #endif
-
-/* #define ENDIAN_LITTLE */
-/* #define ENDIAN_BIG */
-
-/* #define ENDIAN_32BITWORD */
-/* #define ENDIAN_64BITWORD */
 
 #if (defined(ENDIAN_BIG) || defined(ENDIAN_LITTLE)) && !(defined(ENDIAN_32BITWORD) || defined(ENDIAN_64BITWORD))
     #error You must specify a word size as well as endianess in tomcrypt_cfg.h

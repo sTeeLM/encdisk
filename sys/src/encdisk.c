@@ -280,7 +280,7 @@ typedef struct _CLUSTER_BUFFER{
     UCHAR                       cipher[CRYPT_CLUSTER_SIZE];
     BOOLEAN                     dirty;
     BOOLEAN                     valid;
-    ULONG                       index;
+    ULONGLONG                   index;
 }CLUSTER_BUFFER, *PCLUSTER_BUFFER;
 
 typedef struct _DEVICE_EXTENSION {
@@ -1189,7 +1189,7 @@ FlushBuffer(
     IoStatus.Status = STATUS_SUCCESS;
     if(cbf->valid && cbf->dirty) 
     {
-        KdPrint(("EncDisk: FlushBuffer cluster index %u", cbf->index));
+        KdPrint(("EncDisk: FlushBuffer cluster index %I64u", cbf->index));
   
         /* encrypt cbf */
         if(CryptEncryptCluster(&Extension->context, cbf->plain, cbf->cipher, cbf->index) != CRYPT_OK)
@@ -1232,7 +1232,7 @@ NTSTATUS
 EncryptWriteCluster(
     PDEVICE_EXTENSION Extension,
     PUCHAR Buffer,
-    ULONG ClusterIndex,
+    ULONGLONG ClusterIndex,
     ULONG Offset, /* offset in cluster */
     ULONG Length /* length, should <= cluster size - offset */
     )
@@ -1241,7 +1241,7 @@ EncryptWriteCluster(
     IO_STATUS_BLOCK IoStatus;
     LARGE_INTEGER  ByteOffset;
 
-    KdPrint(("EncDisk: EncryptWriteCluster(%u) Offset %u Length %u, cache %d %d %u", 
+    KdPrint(("EncDisk: EncryptWriteCluster(%I64u) Offset %u Length %u, cache %d %d %I64u", 
         ClusterIndex, Offset, Length,
         cbf->valid, cbf->dirty, cbf->index));
 
@@ -1254,7 +1254,7 @@ EncryptWriteCluster(
     }
     else /* !cbf->valid || ClusterIndex != cbf->index */
     {
-        KdPrint(("EncDisk: EncryptWriteCluster miss cache request %u, we have %d %d %u", 
+        KdPrint(("EncDisk: EncryptWriteCluster miss cache request %I64u, we have %d %d %I64u", 
             ClusterIndex, cbf->valid, cbf->dirty, cbf->index));
         /* we need load cache , flush old cache first */
         if(ClusterIndex != cbf->index) 
@@ -1272,7 +1272,7 @@ EncryptWriteCluster(
         {
             KdPrint(("EncDisk: EncryptWriteCluster partial write, load cache"));
             /* raw read one cluster from disk */
-            KdPrint(("EncDisk: EncryptReadCluster load cache clust index %u", ClusterIndex));
+            KdPrint(("EncDisk: EncryptReadCluster load cache clust index %I64u", ClusterIndex));
             ByteOffset.QuadPart = ClusterIndex * CRYPT_CLUSTER_SIZE;
             ZwReadFile(
                 Extension->file_handle,
@@ -1318,7 +1318,7 @@ NTSTATUS
 DecryptReadCluster(
     PDEVICE_EXTENSION Extension,
     PUCHAR Buffer,
-    ULONG ClusterIndex,
+    ULONGLONG ClusterIndex,
     ULONG Offset, /* byte offset in cluster */
     ULONG Length /* byte length, should <= cluster size - offset */
     )
@@ -1327,7 +1327,7 @@ DecryptReadCluster(
     IO_STATUS_BLOCK IoStatus;
     LARGE_INTEGER  ByteOffset;
 
-    KdPrint(("EncDisk: DecryptReadCluster(%u) Offset %u Length %u, cache %d %d %u", 
+    KdPrint(("EncDisk: DecryptReadCluster(%I64u) Offset %u Length %u, cache %d %d %I64u", 
         ClusterIndex, Offset, Length,
         cbf->valid, cbf->dirty, cbf->index));
     /* does we have a valid cache ?*/
@@ -1338,7 +1338,7 @@ DecryptReadCluster(
     }
     else /* !cbf->valid || ClusterIndex != cbf->index */
     {
-        KdPrint(("EncDisk: DecryptReadCluster miss cache request %u, we have %d %d %u", 
+        KdPrint(("EncDisk: DecryptReadCluster miss cache request %u, we have %d %d %I64u", 
             ClusterIndex, cbf->valid, cbf->dirty, cbf->index));
         /* we need load cache , flush old cache first */
         if(ClusterIndex != cbf->index) 
@@ -1351,7 +1351,7 @@ DecryptReadCluster(
             cbf->valid = FALSE;
         }
         
-        KdPrint(("EncDisk: EncryptReadCluster load cache clust index %u", ClusterIndex));
+        KdPrint(("EncDisk: EncryptReadCluster load cache clust index %I64u", ClusterIndex));
         /* raw read one cluster from disk */
         ByteOffset.QuadPart = ClusterIndex * CRYPT_CLUSTER_SIZE;
         ZwReadFile(
@@ -1403,7 +1403,7 @@ DecryptRead(
     )
 {
     PUCHAR P = Buffer;
-    ULONG  ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
+    ULONGLONG  ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
     ULONG Begin = (ULONG)(Offset - (ClusterIndex * CRYPT_CLUSTER_SIZE));
     ULONG ToRead;
 
@@ -1414,7 +1414,7 @@ DecryptRead(
         if(ToRead + Begin > CRYPT_CLUSTER_SIZE) {
             ToRead = CRYPT_CLUSTER_SIZE - Begin;
         }
-        KdPrint(("EncDisk: DecryptRead ClusterIndex=%u Begin=%u ToRead=%u Length=%u\n",
+        KdPrint(("EncDisk: DecryptRead ClusterIndex=%I64u Begin=%u ToRead=%u Length=%u\n",
             ClusterIndex, Begin, ToRead, Length));
         
         Status->Status = DecryptReadCluster(Extension, P, ClusterIndex, Begin, ToRead);
@@ -1443,7 +1443,7 @@ EncryptWrite(
     )
 {
     PUCHAR P = Buffer;
-    ULONG ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
+    ULONGLONG ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
     ULONG Begin = (ULONG)(Offset - (ClusterIndex * CRYPT_CLUSTER_SIZE));
     ULONG ToWrite;
 
@@ -1454,7 +1454,7 @@ EncryptWrite(
         if(ToWrite + Begin > CRYPT_CLUSTER_SIZE) {
             ToWrite = CRYPT_CLUSTER_SIZE - Begin;
         }
-        KdPrint(("EncDisk: EncryptWrite ClusterIndex=%u Begin=%u ToWrite=%u Length=%u\n",
+        KdPrint(("EncDisk: EncryptWrite ClusterIndex=%I64u Begin=%u ToWrite=%u Length=%u\n",
             ClusterIndex, Begin, ToWrite, Length));
 
         Status->Status = EncryptWriteCluster(Extension, P, ClusterIndex, Begin, ToWrite);

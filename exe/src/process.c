@@ -11,8 +11,8 @@ typedef struct _ENC_PROCESS_ARG
     CHAR * FileName;
     PCRYPT_CONTEXT DecryptContext;
     PCRYPT_CONTEXT EncryptContext;
-    ULONG From;
-    ULONG To;
+    ULONGLONG From;
+    ULONGLONG To;
     HANDLE hThread;
     DWORD  ThreadID;
 }ENC_PROCESS_ARG, *PENC_PROCESS_ARG;
@@ -22,19 +22,19 @@ static DWORD WINAPI ProcessWorker(LPVOID Param)
 {
     PENC_PROCESS_ARG P = (PENC_PROCESS_ARG) Param;
     HANDLE hFile = INVALID_HANDLE_VALUE;
-    ULONG ClusterCount = ENC_CLUSTER_COUNT;
+    ULONGLONG ClusterCount = ENC_CLUSTER_COUNT;
     LPBYTE Buffer1 = NULL;
     LPBYTE Buffer2 = NULL;
     LARGE_INTEGER Pos, Begin;
     DWORD Junk;
-    ULONG b, n, i = 0, j = 0;
+    ULONGLONG b, n, i = 0, j = 0;
     DWORD Ret = 1;
 
-    if((Buffer1 = malloc(CRYPT_CLUSTER_SIZE * ClusterCount)) == NULL) {
+    if((Buffer1 = malloc((size_t)(CRYPT_CLUSTER_SIZE * ClusterCount))) == NULL) {
         goto err;
     }
 
-    if((Buffer2 = malloc(CRYPT_CLUSTER_SIZE * ClusterCount)) == NULL) {
+    if((Buffer2 = malloc((size_t)(CRYPT_CLUSTER_SIZE * ClusterCount))) == NULL) {
         goto err;
     }
 
@@ -66,7 +66,7 @@ static DWORD WINAPI ProcessWorker(LPVOID Param)
 again:
     // big block: process big block
     for(; i < b ; i ++) {
-        if(!ReadFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE * ClusterCount, &Junk, NULL)
+        if(!ReadFile(hFile, Buffer1, (DWORD)(CRYPT_CLUSTER_SIZE * ClusterCount), &Junk, NULL)
             || Junk != CRYPT_CLUSTER_SIZE * ClusterCount) {
             PrintLastError("ProcessFile:");
             goto err;
@@ -75,7 +75,7 @@ again:
             InterlockedIncrement(&DoCount);
             if(NULL != P->DecryptContext) {
                 if(CryptDecryptCluster(P->DecryptContext, Buffer1 + j * CRYPT_CLUSTER_SIZE,
-                    Buffer2 + j * CRYPT_CLUSTER_SIZE, i * ClusterCount + j) != CRYPT_OK) {
+                    Buffer2 + j * CRYPT_CLUSTER_SIZE, P->From + i * ClusterCount + j) != CRYPT_OK) {
                     goto err;
                 }
             } else {
@@ -85,7 +85,7 @@ again:
 
             if(NULL != P->EncryptContext) {
                 if(CryptEncryptCluster(P->EncryptContext, Buffer2 + j * CRYPT_CLUSTER_SIZE, 
-                    Buffer1 + j * CRYPT_CLUSTER_SIZE, i * ClusterCount + j) != CRYPT_OK) {
+                    Buffer1 + j * CRYPT_CLUSTER_SIZE, P->From + i * ClusterCount + j) != CRYPT_OK) {
                     goto err;
                 }
             } else {
@@ -98,7 +98,7 @@ again:
             goto err;
         }
 
-        if(!WriteFile(hFile, Buffer1, CRYPT_CLUSTER_SIZE * ClusterCount, &Junk, NULL)
+        if(!WriteFile(hFile, Buffer1, (DWORD)(CRYPT_CLUSTER_SIZE * ClusterCount), &Junk, NULL)
             ||Junk != CRYPT_CLUSTER_SIZE * ClusterCount) {
             PrintLastError("ProcessFile:");
             goto err;
@@ -109,7 +109,7 @@ again:
     // small block: process cluster one by one
     if(ClusterCount != 1) {
         i = b * ClusterCount;
-        b = (P->To - P->From + 1);
+        b = P->To - P->From + 1;
         ClusterCount = 1;
         goto again;
     }
@@ -136,8 +136,8 @@ static PENC_PROCESS_ARG ProcessFileBlock(
     const CHAR * FileName,
     PCRYPT_CONTEXT DecryptContext,
     PCRYPT_CONTEXT EncryptContext,
-    ULONG From,
-    ULONG To
+    ULONGLONG From,
+    ULONGLONG To
     )
 {
     PENC_PROCESS_ARG Arg = NULL;
@@ -198,7 +198,7 @@ static PENC_PROCESS_ARG ProcessFileBlock(
         PrintLastError("ProcessFile:");
         goto err;
     }
-    PrintMessage("Thread [%u][%u - %u]\n", Arg->ThreadID, From, To);
+    PrintMessage("Thread [%u][%I64u - %I64u]\n", Arg->ThreadID, From, To);
 
     Ret = 0;
 err:
@@ -221,7 +221,7 @@ INT ProcessFile(const CHAR * FileName,
 {
     LARGE_INTEGER FileSize;
     HANDLE hFile = INVALID_HANDLE_VALUE;
-    ULONG Cluster;
+    ULONGLONG Cluster;
     PENC_PROCESS_ARG Threads[ENC_DISK_MAX_THREAD_CNT] = {NULL};
     HANDLE hThreads[ENC_DISK_MAX_THREAD_CNT];
     ULONG i = 0, j, ThreadCnt = 0;
@@ -259,9 +259,9 @@ INT ProcessFile(const CHAR * FileName,
     CloseHandle(hFile);
     hFile = INVALID_HANDLE_VALUE;
 
-    Cluster = (ULONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE / ThreadNum);
+    Cluster = (FileSize.QuadPart / CRYPT_CLUSTER_SIZE / ThreadNum);
 
-    PrintMessage("ProcessFile: Total %u block, %u block per thread\n", (ULONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE), Cluster);
+    PrintMessage("ProcessFile: Total %I64u block, %I64u block per thread\n", FileSize.QuadPart / CRYPT_CLUSTER_SIZE, Cluster);
 
     if(Cluster != 0) { // create threads to process file
         for(i = 0; i < ThreadNum; i ++) {
@@ -274,9 +274,9 @@ INT ProcessFile(const CHAR * FileName,
             }
         }
     }
-    if(Cluster * ThreadNum != (ULONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE)) {
+    if(Cluster * ThreadNum != FileSize.QuadPart / CRYPT_CLUSTER_SIZE) {
         Threads[i] = ProcessFileBlock(FileName, DecryptContext, EncryptContext,
-            i * Cluster, (ULONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE) - 1);
+            i * Cluster, FileSize.QuadPart / CRYPT_CLUSTER_SIZE - 1);
         if(Threads[i] == NULL) {
             goto err;
         } else {

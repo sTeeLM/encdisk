@@ -65,7 +65,8 @@ enum {
 #include "crypt_hash.h"
 #include "crypt_argchk.h"
 #include "crypt_base64.h"
-#include "crypt_singlebyte.h"
+#include "crypt_shuffle.h"
+#include "crypt_utils.h"
 
 #define CRYPT_SECTOR_SIZE  512 /* a sector */
 #define CRYPT_SECTOR_SHIFT 9
@@ -73,14 +74,18 @@ enum {
 #define CRYPT_CLUSTER_SHIFT 17
 #define CRYPT_CLUSTER_SIZE (CRYPT_SECTOR_SIZE * CRYPT_SECTOR_P_CLUSTER) /* a cluster */
 
-#define CRYPT_SLOT_NUMBER 10
+#define CRYPT_SLOT_NUMBER 8
 #define CRYPT_KEY_SIZE 32
 #define CRYPT_IV_SIZE  32
+
+#define CRYPT_MIN_HARD 0
+#define CRYPT_MAX_HARD (CRYPT_SLOT_NUMBER)
 
 #pragma pack(push, r1, 1)
 typedef struct _CRYPT_KEY {
     UCHAR signature[16];   // md5 hash
-    UCHAR shuff[CRYPT_KEY_SIZE];
+    UCHAR shu3[CRYPT_KEY_SIZE];
+    UCHAR shu8[CRYPT_KEY_SIZE];
     CHAR  algo[CRYPT_SLOT_NUMBER];
     UCHAR key[CRYPT_SLOT_NUMBER][CRYPT_KEY_SIZE];
     UCHAR iv[CRYPT_SLOT_NUMBER][CRYPT_IV_SIZE];
@@ -89,7 +94,8 @@ typedef struct _CRYPT_KEY {
 
 typedef struct _CRYPT_CONTEXT {
     CRYPT_KEY key;
-    CYRPT_SINGLE_BYTE_KEY shuff;
+    CYRPT_SHUFFLE3_CONTEXT shuc3;
+    CYRPT_SHUFFLE8_CONTEXT shuc8;
     symmetric_CBC cbc[CRYPT_SLOT_NUMBER];
 }CRYPT_CONTEXT, *PCRYPT_CONTEXT;
 
@@ -111,11 +117,11 @@ INT CryptGenContext(INT hard, PCRYPT_CONTEXT context);
 INT CryptRestoreContext(PCRYPT_CONTEXT context);
 INT CryptCleanupContext(PCRYPT_CONTEXT context);
 
-INT CryptEncryptSector(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG index);
-INT CryptDecryptSector(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG index);
+INT CryptDecryptSector(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG sector_index, ULONGLONG cluster_index);
+INT CryptEncryptSector(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG sector_index, ULONGLONG cluster_index);
 
-INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG index);
-INT CryptDecryptCluster(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG index);
+INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONGLONG cluster_index);
+INT CryptDecryptCluster(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONGLONG cluster_index);
 
 INT CryptEncodeKey(const PCRYPT_KEY in, PCRYPT_KEY work, void * out, const CHAR * password, ULONG *out_size);
 INT CryptDecodeKey(const void * in, PCRYPT_KEY out, const CHAR * password, ULONG in_size);

@@ -71,7 +71,7 @@ INT __cdecl main(INT argc, CHAR* argv[])
     CHAR*                   Option;
     CHAR                    DriveLetter;
     LARGE_INTEGER           RealFileSize;
-    INT                     HardLevel = 10;
+    INT                     HardLevel = CRYPT_MAX_HARD;
     INT                     ThreadNum = ENC_DEFAULT_THREAD_NUM;
     CRYPT_XFUN              xfun;
     CHAR                    Path1[MAX_PATH];

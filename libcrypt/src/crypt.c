@@ -21,41 +21,6 @@
 
 #define CRYPT_ALGO_NUMBER 16
 
-static INT GenMd5(const void * data, SIZE_T len, UCHAR * out)
-{
-	hash_state md5;
-	if(md5_init(&md5) != CRYPT_OK) return CRYPT_ERROR;
-	if(md5_process(&md5, data, (ULONG)len) != CRYPT_OK)  return CRYPT_ERROR;
-	if(md5_done(&md5, out)!= CRYPT_OK) return CRYPT_ERROR;
-	return CRYPT_OK;
-}
-
-
-static INT RngGetBytes(void *out, SIZE_T outlen)
-{
-   ULONG x, n, r, i;
-   ULONG * p;
-   UCHAR * p1;
-
-   p = (ULONG *)out;
-   n = (ULONG)(outlen / sizeof(ULONG));
-   r = (ULONG)(outlen % sizeof(ULONG));
-
-
-   for( i = 0 ; i < n ; i ++) {
-        x = XRAND();
-        *p = x;
-        p ++;
-   }
-   p1 = (UCHAR *)p;
-
-   for( i = 0 ; i < r; i ++) {
-        x = XRAND();
-        *p1 = (UCHAR)x;
-        p1 ++;
-   }
-   return (INT)outlen;
-}
 
 static INT CryptVerifyKey(const PCRYPT_KEY key)
 {
@@ -84,7 +49,10 @@ INT CryptCleanupContext(PCRYPT_CONTEXT context)
             ) != CRYPT_OK) return CRYPT_ERROR;
     }
 
-    if(SingleByteDone(&context->shuff) != CRYPT_OK)
+    if(shuffle3done(&context->shuc3) != CRYPT_OK)
+        return CRYPT_ERROR;
+
+    if(shuffle8done(&context->shuc8) != CRYPT_OK)
         return CRYPT_ERROR;
 
     XZEROMEM(context, sizeof(CRYPT_CONTEXT));
@@ -107,8 +75,10 @@ INT CryptRestoreContext(PCRYPT_CONTEXT context)
             return CRYPT_ERROR;
     }
 
-    if(SingleByteSetup(context->key.shuff, sizeof(context->key.shuff), 
-        &context->shuff) != CRYPT_OK) return CRYPT_ERROR;
+    if(shuffle3setup(context->key.shu3, sizeof(context->key.shu3), 
+        &context->shuc3) != CRYPT_OK) return CRYPT_ERROR;
+    if(shuffle8setup(context->key.shu8, sizeof(context->key.shu8), 
+        &context->shuc8) != CRYPT_OK) return CRYPT_ERROR;  
     
     return CRYPT_OK;
 }
@@ -120,10 +90,10 @@ INT CryptGenContext(INT hard, PCRYPT_CONTEXT context)
     UCHAR iv[CRYPT_IV_SIZE];
 	UCHAR *p = NULL;
 
-    if(hard < 0 )
-        hard = 0;
-    if(hard > CRYPT_SLOT_NUMBER)
-        hard = CRYPT_SLOT_NUMBER;
+    if(hard < CRYPT_MIN_HARD )
+        hard = CRYPT_MIN_HARD;
+    if(hard > CRYPT_MAX_HARD)
+        hard = CRYPT_MAX_HARD;
 
 
     RngGetBytes(context, sizeof(CRYPT_CONTEXT));
@@ -159,15 +129,18 @@ err:
 }
 
 /* 
- index: index within one cluster
+ sector_index: index within one cluster
+ cluster_index: index of cluster
  buffer must have CRYPT_SECTOR_SIZE bytes ! */
-INT CryptEncryptSector(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG index)
+INT CryptEncryptSector(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG sector_index, ULONGLONG cluster_index)
 {
 
-    ULONG  i, x;
+    UCHAR  i, x;
+
     XMEMCPY(cipher, plain, CRYPT_SECTOR_SIZE);
     for(i = 0; i < CRYPT_SLOT_NUMBER; i ++) {
-        x = (index + i) % CRYPT_SLOT_NUMBER;
+        //x = (cluster_index + i) % CRYPT_SLOT_NUMBER;
+        x = shuffle3encrypt(&context->shuc3, i, sector_index + cluster_index * CRYPT_SECTOR_P_CLUSTER);
         /* reset iv */
         if(cbc_setiv(
             context->key.iv[x],
@@ -187,15 +160,18 @@ INT CryptEncryptSector(PCRYPT_CONTEXT context, const void * plain, void * cipher
 }
 
 /* 
- index: index within one cluster
+ sector_index: index within one cluster
+ cluster_index: index of cluster
  buffer must have CRYPT_SECTOR_SIZE bytes ! */
-INT CryptDecryptSector(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG index)
+INT CryptDecryptSector(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG sector_index, ULONGLONG cluster_index)
 {
 
-    ULONG i,x;
+    UCHAR i,x;
+
     XMEMCPY(plain, cipher, CRYPT_SECTOR_SIZE);
     for(i = CRYPT_SLOT_NUMBER ; i > 0 ; i--) {
-        x = (index + i - 1) % CRYPT_SLOT_NUMBER;
+        //x = (cluster_index + i - 1) % CRYPT_SLOT_NUMBER;
+        x = shuffle3encrypt(&context->shuc3, i - 1, sector_index + cluster_index * CRYPT_SECTOR_P_CLUSTER);
         /* reset iv */
         if(cbc_setiv(
             context->key.iv[x],
@@ -218,7 +194,7 @@ INT CryptDecryptSector(PCRYPT_CONTEXT context, const void * cipher, void * plain
 /* 
 index: cluster number from begin of disk
 buffer must have CRYPT_CLUSTER_SIZE bytes ! */
-INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONG index)
+INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * cipher, ULONGLONG cluster_index)
 {
 
     ULONG i;
@@ -227,8 +203,10 @@ INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * ciphe
     UCHAR * c = (UCHAR *) cipher;
 
     for(i = 0 ; i < CRYPT_SECTOR_P_CLUSTER ; i++) {
-        x = SingleByteEncrypt(&context->shuff, i % 256 , index);
-        if(CryptEncryptSector(context, p + i * CRYPT_SECTOR_SIZE, c + x * CRYPT_SECTOR_SIZE, i) != CRYPT_OK)
+        //x = SingleByteEncrypt(&context->shuff, i % 256 , index);
+        x = shuffle8encrypt(&context->shuc8, (UCHAR)(i), cluster_index);
+        if(CryptEncryptSector(context, p + i * CRYPT_SECTOR_SIZE, c + 
+            x * CRYPT_SECTOR_SIZE, i, cluster_index) != CRYPT_OK)
             return CRYPT_ERROR;
     }
     return CRYPT_OK;
@@ -237,7 +215,7 @@ INT CryptEncryptCluster(PCRYPT_CONTEXT context, const void * plain, void * ciphe
 /* 
 index: cluster number from begin of disk
 buffer must have CRYPT_CLUSTER_SIZE bytes ! */
-INT CryptDecryptCluster(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONG index)
+INT CryptDecryptCluster(PCRYPT_CONTEXT context, const void * cipher, void * plain, ULONGLONG cluster_index)
 {
     ULONG i;
     UCHAR x;
@@ -245,8 +223,10 @@ INT CryptDecryptCluster(PCRYPT_CONTEXT context, const void * cipher, void * plai
     const UCHAR * c = (UCHAR *) cipher;
 
     for(i = 0 ; i < CRYPT_SECTOR_P_CLUSTER ; i++) {
-        x = SingleByteDecrypt(&context->shuff, i % 256 , index);
-        if(CryptDecryptSector(context, c + i * CRYPT_SECTOR_SIZE, p + x * CRYPT_SECTOR_SIZE, x) != CRYPT_OK)
+        //x = SingleByteDecrypt(&context->shuff, i % 256 , index);
+        x = shuffle8decrypt(&context->shuc8, (UCHAR)(i), cluster_index);
+        if(CryptDecryptSector(context, c + i * CRYPT_SECTOR_SIZE, 
+            p + x * CRYPT_SECTOR_SIZE, x, cluster_index) != CRYPT_OK)
             return CRYPT_ERROR;
     }
     return CRYPT_OK;
