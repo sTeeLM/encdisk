@@ -6,10 +6,12 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
     CHAR    DriveName[] = " :\\";
     HANDLE  Device = INVALID_HANDLE_VALUE;
     DWORD   BytesReturned;
+    BOOL    Locked = FALSE;
 
     VolumeName[4] = DriveLetter;
     DriveName[0] = DriveLetter;
 
+    PrintMessage("Opening %c\n", VolumeName[4]);
     Device = CreateFile(
         VolumeName,
         GENERIC_READ | GENERIC_WRITE,
@@ -26,7 +28,8 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         return -1;
     }
 
-    if (!DeviceIoControl(
+    PrintMessage("Locking %c\n", VolumeName[4]);
+    if (!(Locked = DeviceIoControl(
         Device,
         FSCTL_LOCK_VOLUME,
         NULL,
@@ -35,19 +38,27 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         0,
         &BytesReturned,
         NULL
-        ) && !Force)
+        )) && !Force)
     {
         PrintLastError(&VolumeName[4]);
         CloseHandle(Device);
         return -1;
     }
+    
+    if(Locked) {
+        PrintMessage("Lock %c OK!\n", VolumeName[4]);
+    } else {
+        PrintMessage("Lock %c Failed, try force umount!\n", VolumeName[4]);
+    }
 
+    PrintMessage("Flushing %c\n", VolumeName[4]);
     if(!FlushFileBuffers(Device)) {
         PrintLastError(&VolumeName[4]);
         CloseHandle(Device);
         return -1;
     }
 
+    PrintMessage("Closing %c\n", VolumeName[4]);
     if (!DeviceIoControl(
         Device,
         IOCTL_ENC_DISK_CLOSE_FILE,
@@ -64,6 +75,7 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         return -1;
     }
 
+    PrintMessage("Unmounting %c\n", VolumeName[4]);
     if (!DeviceIoControl(
         Device,
         FSCTL_DISMOUNT_VOLUME,
@@ -80,24 +92,27 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         return -1;
     }
 
-    if (!DeviceIoControl(
-        Device,
-        FSCTL_UNLOCK_VOLUME,
-        NULL,
-        0,
-        NULL,
-        0,
-        &BytesReturned,
-        NULL
-        ) && !Force)
-    {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        return -1;
+    if(Locked) {
+        PrintMessage("Unlocking %c\n", VolumeName[4]);
+        if (!DeviceIoControl(
+            Device,
+            FSCTL_UNLOCK_VOLUME,
+            NULL,
+            0,
+            NULL,
+            0,
+            &BytesReturned,
+            NULL
+            ) && !Force)
+        {
+            PrintLastError(&VolumeName[4]);
+            CloseHandle(Device);
+            return -1;
+        }
     }
 
     CloseHandle(Device);
-
+    PrintMessage("Remove symbolic link %c\n", VolumeName[4]);
     if (!DefineDosDevice(
         DDD_REMOVE_DEFINITION,
         &VolumeName[4],
