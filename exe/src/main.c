@@ -31,7 +31,7 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "encdisk /decrypt <filename> <key file> [thread num]\n");
     fprintf(stderr, "encdisk /rekey <filename> <decrypt key file> <encrypt key file> [thread num]\n");
     fprintf(stderr, "encdisk /mount <filename> [key file] <devicenumber> <drive:>\n");
-    fprintf(stderr, "encdisk /umount <drive:>\n");
+    fprintf(stderr, "encdisk /umount <drive:> [/force]\n");
     fprintf(stderr, "encdisk /status <drive:>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "example:\n");
@@ -77,6 +77,7 @@ INT __cdecl main(INT argc, CHAR* argv[])
     CHAR                    Path1[MAX_PATH];
     CHAR                    Path2[MAX_PATH];
     CHAR                    Path3[MAX_PATH];
+    BOOLEAN                 Force;
 
     if(!RandInitialize()) {
         return EncDiskSyntax();
@@ -225,10 +226,13 @@ INT __cdecl main(INT argc, CHAR* argv[])
             return EncDiskMount(Path1, NULL, DeviceNumber, DriveLetter);
         }
     }
-    else if(argc == 3 && !strcmp(Command, "/unmount"))
+    else if((argc == 3 || argc == 4) && !strcmp(Command, "/umount"))
     {
         DriveLetter = argv[2][0];
-        return EncDiskUmount(DriveLetter);
+        Force = FALSE;
+        if(argc == 4 && !strcmp(argv[3], "/force"))
+            Force = TRUE;
+        return EncDiskUmount(DriveLetter, Force);
     }
     else if(argc == 3 && !strcmp(Command, "/status"))
     {

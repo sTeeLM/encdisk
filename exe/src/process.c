@@ -1,9 +1,14 @@
 #include "control.h"
+#include <stdio.h>
+#include <time.h> 
+#include <sys/timeb.h>
+#include <string.h>
+
 
 #define ENC_CLUSTER_COUNT 64
 #define ENC_DISK_MAX_THREAD_CNT MAXIMUM_WAIT_OBJECTS
 
-static LONG DoCount;
+static ULONGLONG DoCount;
 static LONG QuitThreadCnt;
 
 typedef struct _ENC_PROCESS_ARG
@@ -17,6 +22,17 @@ typedef struct _ENC_PROCESS_ARG
     DWORD  ThreadID;
 }ENC_PROCESS_ARG, *PENC_PROCESS_ARG;
 
+
+static const CHAR * GetETA(time_t begin, ULONGLONG DoCount, ULONGLONG ToTal)
+{
+    time_t current;
+    time_t finish, diff;
+
+    current = time(NULL);
+    diff = current - begin;
+    finish = (time_t)((ToTal * diff / DoCount) + begin);
+    return ctime(&finish);
+}
 
 static DWORD WINAPI ProcessWorker(LPVOID Param)
 {
@@ -72,7 +88,7 @@ again:
             goto err;
         }
         for(j = 0 ; j < ClusterCount; j ++) {
-            InterlockedIncrement(&DoCount);
+            InterlockedIncrement64(&DoCount);
             if(NULL != P->DecryptContext) {
                 if(CryptDecryptCluster(P->DecryptContext, Buffer1 + j * CRYPT_CLUSTER_SIZE,
                     Buffer2 + j * CRYPT_CLUSTER_SIZE, P->From + i * ClusterCount + j) != CRYPT_OK) {
@@ -228,9 +244,12 @@ INT ProcessFile(const CHAR * FileName,
     DWORD WaitStatus;
     INT Ret = -1;
     INT Progress;
+    time_t begin;
 
     DoCount = 0;
     QuitThreadCnt = 0;
+
+    begin = time(NULL);
 
     if(ThreadNum == 0)
         ThreadNum = ENC_DEFAULT_THREAD_NUM;
@@ -296,7 +315,8 @@ again:
         goto err;
     } else if(WaitStatus == WAIT_TIMEOUT){
         Progress = (INT)((DoCount * 100) / (FileSize.QuadPart / CRYPT_CLUSTER_SIZE));
-        PrintMessage("[%d%%][Quit Thread %u]\n", Progress, QuitThreadCnt);
+        PrintMessage("[%d%%][Quit Thread %u] ETA: %s", Progress, QuitThreadCnt, 
+            GetETA(begin, DoCount, FileSize.QuadPart / CRYPT_CLUSTER_SIZE));
         goto again;  
     }
     Progress = 100;

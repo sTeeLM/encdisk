@@ -1,10 +1,10 @@
 #include "control.h"
 
-INT EncDiskUmount(CHAR DriveLetter)
+INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
 {
     CHAR    VolumeName[] = "\\\\.\\ :";
     CHAR    DriveName[] = " :\\";
-    HANDLE  Device;
+    HANDLE  Device = INVALID_HANDLE_VALUE;
     DWORD   BytesReturned;
 
     VolumeName[4] = DriveLetter;
@@ -35,8 +35,14 @@ INT EncDiskUmount(CHAR DriveLetter)
         0,
         &BytesReturned,
         NULL
-        ))
+        ) && !Force)
     {
+        PrintLastError(&VolumeName[4]);
+        CloseHandle(Device);
+        return -1;
+    }
+
+    if(!FlushFileBuffers(Device)) {
         PrintLastError(&VolumeName[4]);
         CloseHandle(Device);
         return -1;
@@ -83,7 +89,7 @@ INT EncDiskUmount(CHAR DriveLetter)
         0,
         &BytesReturned,
         NULL
-        ))
+        ) && !Force)
     {
         PrintLastError(&VolumeName[4]);
         CloseHandle(Device);
@@ -96,7 +102,7 @@ INT EncDiskUmount(CHAR DriveLetter)
         DDD_REMOVE_DEFINITION,
         &VolumeName[4],
         NULL
-        ))
+        ) && !Force)
     {
         PrintLastError(&VolumeName[4]);
         return -1;

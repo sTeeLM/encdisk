@@ -75,8 +75,12 @@ INT EncDiskStatus(CHAR DriveLetter)
         OpenFileInformation->FileName,
         OpenFileInformation->RealFileSize
         );
-
-    DumpKey(&OpenFileInformation->Key);
+    if(OpenFileInformation->IsEncrypt) {
+        PrintMessage("encrypt disk:\n");
+        DumpKey(&OpenFileInformation->Key);
+    } else {
+        PrintMessage("plain disk\n");
+    }
 
     free(OpenFileInformation);
 

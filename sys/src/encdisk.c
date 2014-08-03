@@ -959,7 +959,7 @@ EncDiskDeviceControl (
             open_file_information = (POPEN_FILE_INFORMATION) Irp->AssociatedIrp.SystemBuffer;
             open_file_information->RealFileSize.QuadPart = device_extension->file_size.QuadPart;
             open_file_information->FileNameLength = device_extension->file_name.Length;
-
+            open_file_information->IsEncrypt = device_extension->is_encrypt;
             RtlCopyMemory(
                 &open_file_information->Key,
                 &device_extension->context.key,

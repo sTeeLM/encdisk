@@ -1,15 +1,22 @@
 ﻿2014-07-28  sTeeL  <steel.mental@gmail.com>
 
-	* 初始版本 1.0,0.0
+	* 初始版本 1.0.0.0
 2014-07-29  sTeeL  <steel.mental@gmail.com>
 
-	* 版本 1.1,0.0
+	* 版本 1.1.0.0
 	1. 支持装载非加密镜像
 	2. 多线程处理encrypt/decrypt/rekey
+
 2014-07-30  sTeeL  <steel.mental@gmail.com>
 
-	* 版本 1.2,0.0
+	* 版本 1.2.0.0
 	1. 修正多线程bug
 	2. 增强加密算法:改进shuffle
 	3. 安全增强：修改生成key时候使用的rand
 	4. 修正文件大于4G出错的bug
+
+2014-07-30  sTeeL  <steel.mental@gmail.com>
+
+	* 版本 1.2.1.0
+	1. 添加ETA
+	2. 给umount添加force选项

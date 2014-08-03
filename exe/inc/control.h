@@ -79,7 +79,7 @@ EncDiskMount(
     CHAR                    DriveLetter
 );
 
-INT EncDiskUmount(CHAR DriveLetter);
+INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force);
 
 INT EncDiskStatus(CHAR DriveLetter);
 
