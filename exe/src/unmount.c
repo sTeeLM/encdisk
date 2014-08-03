@@ -28,6 +28,13 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         return -1;
     }
 
+    PrintMessage("Flushing %c\n", VolumeName[4]);
+    if(!FlushFileBuffers(Device)) {
+        PrintLastError(&VolumeName[4]);
+        CloseHandle(Device);
+        return -1;
+    }
+
     PrintMessage("Locking %c\n", VolumeName[4]);
     if (!(Locked = DeviceIoControl(
         Device,
@@ -49,13 +56,6 @@ INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
         PrintMessage("Lock %c OK!\n", VolumeName[4]);
     } else {
         PrintMessage("Lock %c Failed, try force umount!\n", VolumeName[4]);
-    }
-
-    PrintMessage("Flushing %c\n", VolumeName[4]);
-    if(!FlushFileBuffers(Device)) {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        return -1;
     }
 
     PrintMessage("Closing %c\n", VolumeName[4]);
