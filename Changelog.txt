@@ -20,3 +20,8 @@
 	* 版本 1.2.1.0
 	1. 添加ETA
 	2. 给umount添加force选项
+
+2014-08-05  sTeeL  <steel.mental@gmail.com>
+
+	* 版本 1.2.2.0
+	1. 修正驱动中写不到一cluster数据出错的bug

@@ -275,6 +275,7 @@ MmGetSystemAddressForMdlPrettySafe (
 
 HANDLE dir_handle;
 
+
 typedef struct _CLUSTER_BUFFER{
     UCHAR                       plain[CRYPT_CLUSTER_SIZE];
     UCHAR                       cipher[CRYPT_CLUSTER_SIZE];
@@ -717,7 +718,7 @@ EncDiskCreateClose (
 
     device_extension = (PDEVICE_EXTENSION) DeviceObject->DeviceExtension;
 
-    KdPrint(("EncDiskCreateClose called on device %u", device_extension->number));
+    KdPrint(("EncDiskCreateClose called on device %u\n", device_extension->number));
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
     Irp->IoStatus.Information = FILE_OPENED;
@@ -778,7 +779,7 @@ EncDiskReadWrite (
 
     device_extension = (PDEVICE_EXTENSION) DeviceObject->DeviceExtension;
 
-    KdPrint(("EncDiskReadWrite called on device %u", device_extension->number));
+    KdPrint(("EncDiskReadWrite called on device %u\n", device_extension->number));
 
     if (!device_extension->media_in_device)
     {
@@ -1177,6 +1178,7 @@ EncDiskDeviceControl (
     return status;
 }
 
+
 NTSTATUS
 FlushBuffer(
     PDEVICE_EXTENSION Extension
@@ -1186,10 +1188,12 @@ FlushBuffer(
     IO_STATUS_BLOCK IoStatus;
     LARGE_INTEGER  ByteOffset;
 
+    KdPrint(("EncDisk: FlushBuffer request %d %d %I64u\n", cbf->valid, cbf->dirty, cbf->index));
+
     IoStatus.Status = STATUS_SUCCESS;
     if(cbf->valid && cbf->dirty) 
     {
-        KdPrint(("EncDisk: FlushBuffer cluster index %I64u", cbf->index));
+        KdPrint(("EncDisk: FlushBuffer cluster index %I64u flushed\n", cbf->index));
   
         /* encrypt cbf */
         if(CryptEncryptCluster(&Extension->context, cbf->plain, cbf->cipher, cbf->index) != CRYPT_OK)
@@ -1213,18 +1217,19 @@ FlushBuffer(
         
         if(!NT_SUCCESS(IoStatus.Status)) 
         {
-            KdPrint(("EncDisk: FlushBuffer ZwWriteFile error %u", IoStatus.Status));
+            KdPrint(("EncDisk: FlushBuffer ZwWriteFile error %u\n", IoStatus.Status));
             return IoStatus.Status;
         }
         if(IoStatus.Information != CRYPT_CLUSTER_SIZE) 
         {
-            KdPrint(("EncDisk: FlushBuffer ZwWriteFile length error %u != %u", CRYPT_CLUSTER_SIZE, IoStatus.Information));
+            KdPrint(("EncDisk: FlushBuffer ZwWriteFile length error %u != %u\n", CRYPT_CLUSTER_SIZE, IoStatus.Information));
             IoStatus.Status = STATUS_INTERNAL_ERROR;
             return IoStatus.Status;
         }
 
         cbf->dirty = FALSE;
     }
+
     return IoStatus.Status;
 }
 
@@ -1241,20 +1246,21 @@ EncryptWriteCluster(
     IO_STATUS_BLOCK IoStatus;
     LARGE_INTEGER  ByteOffset;
 
-    KdPrint(("EncDisk: EncryptWriteCluster(%I64u) Offset %u Length %u, cache %d %d %I64u", 
+    KdPrint(("EncDisk: EncryptWriteCluster(%I64u) Offset %u Length %u, cache %d %d %I64u\n", 
         ClusterIndex, Offset, Length,
         cbf->valid, cbf->dirty, cbf->index));
+
 
     /* does we have a valid cache ?*/
     if(cbf->valid && ClusterIndex == cbf->index) 
     {
-        KdPrint(("EncDisk: EncryptWriteCluster hit cache"));
+        KdPrint(("EncDisk: EncryptWriteCluster hit cache\n"));
         RtlCopyMemory(&cbf->plain[Offset], Buffer, Length);
         cbf->dirty = TRUE;
     }
     else /* !cbf->valid || ClusterIndex != cbf->index */
     {
-        KdPrint(("EncDisk: EncryptWriteCluster miss cache request %I64u, we have %d %d %I64u", 
+        KdPrint(("EncDisk: EncryptWriteCluster miss cache request %I64u, we have %d %d %I64u\n", 
             ClusterIndex, cbf->valid, cbf->dirty, cbf->index));
         /* we need load cache , flush old cache first */
         if(ClusterIndex != cbf->index) 
@@ -1268,11 +1274,11 @@ EncryptWriteCluster(
         }
 
         /* if it is partial write, load cache , and modify it */
-        if(Offset + Length != CRYPT_CLUSTER_SIZE) 
+        if(Length != CRYPT_CLUSTER_SIZE) 
         {
-            KdPrint(("EncDisk: EncryptWriteCluster partial write, load cache"));
+            KdPrint(("EncDisk: EncryptWriteCluster partial write, load cache\n"));
             /* raw read one cluster from disk */
-            KdPrint(("EncDisk: EncryptReadCluster load cache clust index %I64u", ClusterIndex));
+            KdPrint(("EncDisk: EncryptWriteCluster load cache clust index %I64u\n", ClusterIndex));
             ByteOffset.QuadPart = ClusterIndex * CRYPT_CLUSTER_SIZE;
             ZwReadFile(
                 Extension->file_handle,
@@ -1287,12 +1293,12 @@ EncryptWriteCluster(
                 );
             if(!NT_SUCCESS(IoStatus.Status)) 
             {
-                KdPrint(("EncDisk: EncryptWriteCluster ZwReadFile error %u", IoStatus.Status));
+                KdPrint(("EncDisk: EncryptWriteCluster ZwReadFile error %u\n", IoStatus.Status));
                 return IoStatus.Status;
             }
             if(IoStatus.Information != CRYPT_CLUSTER_SIZE) 
             {
-                KdPrint(("EncDisk: EncryptWriteCluster ZwReadFile length error %u != %u", CRYPT_CLUSTER_SIZE, IoStatus.Information));
+                KdPrint(("EncDisk: EncryptWriteCluster ZwReadFile length error %u != %u\n", CRYPT_CLUSTER_SIZE, IoStatus.Information));
                 IoStatus.Status = STATUS_INTERNAL_ERROR;
                 return IoStatus.Status;
             }
@@ -1310,7 +1316,8 @@ EncryptWriteCluster(
         cbf->dirty = TRUE;
         cbf->index = ClusterIndex;
     }
-    
+
+   
     return STATUS_SUCCESS;
 }
 
@@ -1327,18 +1334,19 @@ DecryptReadCluster(
     IO_STATUS_BLOCK IoStatus;
     LARGE_INTEGER  ByteOffset;
 
-    KdPrint(("EncDisk: DecryptReadCluster(%I64u) Offset %u Length %u, cache %d %d %I64u", 
+    KdPrint(("EncDisk: DecryptReadCluster(%I64u) Offset %u Length %u, cache %d %d %I64u\n", 
         ClusterIndex, Offset, Length,
         cbf->valid, cbf->dirty, cbf->index));
+
     /* does we have a valid cache ?*/
     if(cbf->valid && ClusterIndex == cbf->index) 
     {
-        KdPrint(("EncDisk: DecryptReadCluster hit cache"));
+        KdPrint(("EncDisk: DecryptReadCluster hit cache\n"));
         RtlCopyMemory(Buffer, &cbf->plain[Offset], Length);
     }
     else /* !cbf->valid || ClusterIndex != cbf->index */
     {
-        KdPrint(("EncDisk: DecryptReadCluster miss cache request %u, we have %d %d %I64u", 
+        KdPrint(("EncDisk: DecryptReadCluster miss cache request %I64u, we have %d %d %I64u\n", 
             ClusterIndex, cbf->valid, cbf->dirty, cbf->index));
         /* we need load cache , flush old cache first */
         if(ClusterIndex != cbf->index) 
@@ -1351,7 +1359,7 @@ DecryptReadCluster(
             cbf->valid = FALSE;
         }
         
-        KdPrint(("EncDisk: EncryptReadCluster load cache clust index %I64u", ClusterIndex));
+        KdPrint(("EncDisk: EncryptReadCluster load cache clust index %I64u\n", ClusterIndex));
         /* raw read one cluster from disk */
         ByteOffset.QuadPart = ClusterIndex * CRYPT_CLUSTER_SIZE;
         ZwReadFile(
@@ -1367,12 +1375,12 @@ DecryptReadCluster(
             );
         if(!NT_SUCCESS(IoStatus.Status)) 
         {
-            KdPrint(("EncDisk: EncryptReadCluster ZwReadFile error %u", IoStatus.Status));
+            KdPrint(("EncDisk: EncryptReadCluster ZwReadFile error %u\n", IoStatus.Status));
             return IoStatus.Status;
         }
         if(IoStatus.Information != CRYPT_CLUSTER_SIZE) 
         {
-            KdPrint(("EncDisk: EncryptReadCluster ZwReadFile length error %u != %u", CRYPT_CLUSTER_SIZE, IoStatus.Information));
+            KdPrint(("EncDisk: EncryptReadCluster ZwReadFile length error %u != %u\n", CRYPT_CLUSTER_SIZE, IoStatus.Information));
             IoStatus.Status = STATUS_INTERNAL_ERROR;
             return IoStatus.Status;
         }
@@ -1403,7 +1411,7 @@ DecryptRead(
     )
 {
     PUCHAR P = Buffer;
-    ULONGLONG  ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
+    ULONGLONG  ClusterIndex = (Offset / CRYPT_CLUSTER_SIZE);
     ULONG Begin = (ULONG)(Offset - (ClusterIndex * CRYPT_CLUSTER_SIZE));
     ULONG ToRead;
 
@@ -1420,7 +1428,7 @@ DecryptRead(
         Status->Status = DecryptReadCluster(Extension, P, ClusterIndex, Begin, ToRead);
         if(!NT_SUCCESS(Status->Status)) 
         {
-            KdPrint(("EncDisk: DecryptReadCluster error %u", Status->Status));
+            KdPrint(("EncDisk: DecryptReadCluster error %u\n", Status->Status));
             return;
         }
 
@@ -1443,7 +1451,7 @@ EncryptWrite(
     )
 {
     PUCHAR P = Buffer;
-    ULONGLONG ClusterIndex = (ULONG)(Offset / CRYPT_CLUSTER_SIZE);
+    ULONGLONG ClusterIndex = (Offset / CRYPT_CLUSTER_SIZE);
     ULONG Begin = (ULONG)(Offset - (ClusterIndex * CRYPT_CLUSTER_SIZE));
     ULONG ToWrite;
 
@@ -1460,7 +1468,7 @@ EncryptWrite(
         Status->Status = EncryptWriteCluster(Extension, P, ClusterIndex, Begin, ToWrite);
         if(!NT_SUCCESS(Status->Status)) 
         {
-            KdPrint(("EncDisk: EncryptWriteCluster error %u", Status->Status));
+            KdPrint(("EncDisk: EncryptWriteCluster error %u\n", Status->Status));
             return ;
         }
         Length -= ToWrite;
@@ -1516,7 +1524,7 @@ EncDiskThread (
             && device_extension->is_encrypt) {
             KdPrint(("EncDisk: time out, flush cache"));
             FlushBuffer(device_extension);
-        }
+        } 
 
         if (device_extension->terminate_thread)
         {
@@ -1547,7 +1555,7 @@ EncDiskThread (
                 {
                     irp->IoStatus.Status = STATUS_INSUFFICIENT_RESOURCES;
                     irp->IoStatus.Information = 0;
-                    KdPrint(("EncDisk: EncDiskThread RD system_buffer STATUS_INSUFFICIENT_RESOURCES"));
+                    KdPrint(("EncDisk: EncDiskThread RD system_buffer STATUS_INSUFFICIENT_RESOURCES\n"));
                     break;
                 }
                 /*
@@ -1592,7 +1600,7 @@ EncDiskThread (
                 {
                     irp->IoStatus.Status = STATUS_INVALID_PARAMETER;
                     irp->IoStatus.Information = 0;
-                    KdPrint(("EncDisk: EncDiskThread WT INVALID PARAM"));
+                    KdPrint(("EncDisk: EncDiskThread WT INVALID PARAM\n"));
                     break;
                 }
                 
@@ -1601,7 +1609,7 @@ EncDiskThread (
                 {
                     irp->IoStatus.Status = STATUS_INSUFFICIENT_RESOURCES;
                     irp->IoStatus.Information = 0;
-                    KdPrint(("EncDisk: EncDiskThread RD system_buffer STATUS_INSUFFICIENT_RESOURCES"));
+                    KdPrint(("EncDisk: EncDiskThread RD system_buffer STATUS_INSUFFICIENT_RESOURCES\n"));
                     break;
                 }
 
