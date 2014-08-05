@@ -1,10 +1,28 @@
 #include "control.h"
-
+#include <Wincrypt.h>
 static CRYPT_XFUN xfun;
 
 static ULONG __stdcall Rand()
 {
-    return rand();
+	HCRYPTPROV hProvider = 0;
+	const DWORD dwLength = 8;
+    ULONG Ret = 0;
+
+	if (!CryptAcquireContext(&hProvider, 0, 0, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_SILENT))
+		return Ret;
+
+
+	if (!CryptGenRandom(hProvider, sizeof(Ret), (BYTE*)&Ret))
+	{
+		CryptReleaseContext(hProvider, 0);
+		return Ret;
+	}
+
+	if (!CryptReleaseContext(hProvider, 0))
+		return Ret;
+
+    return Ret;
+    
 }
 static void __stdcall Memcpy(void *dest, const void *src, SIZE_T n)
 {
@@ -21,6 +39,5 @@ BOOL RandInitialize()
     xfun.xrand = Rand;
     xfun.xmemcpy = Memcpy;
     xfun.xmemcmp = Memcmp;
-    srand((INT)time(NULL));
     return CryptInitialize(&xfun) == CRYPT_OK ? TRUE : FALSE;
 }

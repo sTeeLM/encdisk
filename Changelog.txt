@@ -25,3 +25,10 @@
 
 	* 版本 1.2.2.0
 	1. 修正驱动中写不到一cluster数据出错的bug
+
+2014-08-05  sTeeL  <steel.mental@gmail.com>
+
+	* 版本 1.2.3.0
+	1. 添加keyinfo功能
+	2. 修正了usage中的几处bug
+	3. 增强了随机数生成函数

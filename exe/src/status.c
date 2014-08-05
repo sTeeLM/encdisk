@@ -1,19 +1,5 @@
 #include "control.h"
 
-void DumpKey(PCRYPT_KEY key)
-{
-    INT i;
-    PrintMessage("signature: ");
-    for(i = 0 ; i < sizeof(key->signature); i ++) {
-        PrintMessage("%02X", key->signature[i]);
-    }
-    PrintMessage("\n");
-    PrintMessage("algorithm:\n");
-    for(i = 0 ; i < _countof(key->algo); i ++) {
-        PrintMessage("  %s\n", CryptAlgoName(key->algo[i]));
-    }
-}
-
 INT EncDiskStatus(CHAR DriveLetter)
 {
     CHAR                    VolumeName[] = "\\\\.\\ :";

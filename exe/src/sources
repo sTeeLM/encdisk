@@ -23,4 +23,5 @@ rand.c \
 process.c \
 encrypt.c \
 decrypt.c \
-newkey.c
+newkey.c \
+keyinfo.c

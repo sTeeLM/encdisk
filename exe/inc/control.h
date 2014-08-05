@@ -21,6 +21,14 @@ PCRYPT_CONTEXT ReadKeyFile(
     const CHAR * Pass
 );
 
+void DumpKey(
+    PCRYPT_KEY key
+);
+
+INT EncKeyInfo(
+    const CHAR * PrivateKey
+);
+
 INT EncDiskEncrypt(
     const CHAR * FileName, 
     const CHAR * PrivateKey,

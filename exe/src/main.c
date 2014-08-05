@@ -21,18 +21,19 @@ INT EncDiskSyntax(void)
 {
     fprintf(stderr, "Encrypt Disk Control Tool, Version %s\n", ENC_DISK_VERSION_STR);
     fprintf(stderr, "  by sTeeL <steel.mental@gmail.com>\n");
-    fprintf(stderr, "  Thanks to Bo Brant's filedisk <http://www.acc.umu.se/~bosse/>\n");
+    fprintf(stderr, "  Thanks to Bo Branten's filedisk <http://www.acc.umu.se/~bosse/>\n");
     fprintf(stderr, "  and Tom St Denis's LibTomCrypt <http://libtom.org/>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "syntax:\n");
     fprintf(stderr, "encdisk /create <filename> <size[K|M|G>\n");
-    fprintf(stderr, "encdisk /newkey <key file> <hard level 0-10>\n");
+    fprintf(stderr, "encdisk /newkey <key file> <hard level %d->%d>\n", CRYPT_MIN_HARD, CRYPT_MAX_HARD);
     fprintf(stderr, "encdisk /encrypt <filename> <key file> [thread num]\n");
     fprintf(stderr, "encdisk /decrypt <filename> <key file> [thread num]\n");
     fprintf(stderr, "encdisk /rekey <filename> <decrypt key file> <encrypt key file> [thread num]\n");
     fprintf(stderr, "encdisk /mount <filename> [key file] <devicenumber> <drive:>\n");
     fprintf(stderr, "encdisk /umount <drive:> [/force]\n");
     fprintf(stderr, "encdisk /status <drive:>\n");
+    fprintf(stderr, "encdisk /keyinfo <key file>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "example:\n");
     fprintf(stderr, "encdisk /create encdisk.img 8M\n");
@@ -49,7 +50,8 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "  mount image to Z:\n");
     fprintf(stderr, "encdisk /umount Z:\n");
     fprintf(stderr, "  unmount Z:\n");
-
+    fprintf(stderr, "encdisk /keyinfo key.bin\n");
+    fprintf(stderr, "  get information of key.bin\n");
     return -1;
 }
 
@@ -238,6 +240,14 @@ INT __cdecl main(INT argc, CHAR* argv[])
     {
         DriveLetter = argv[2][0];
         return EncDiskStatus(DriveLetter);
+    } if(argc == 3 && !strcmp(Command, "/keyinfo")) 
+    {
+        NewPrivateKey = argv[2];
+        if(!FullPath(NewPrivateKey, sizeof(Path1), Path1)) 
+        {
+            return EncDiskSyntax();
+        }
+        return EncKeyInfo(Path1);
     }
     else
     {
