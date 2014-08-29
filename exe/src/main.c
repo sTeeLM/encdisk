@@ -22,6 +22,7 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "Encrypt Disk Control Tool, Version %s\n", ENC_DISK_VERSION_STR);
     fprintf(stderr, "  by sTeeL <steel.mental@gmail.com>\n");
     fprintf(stderr, "  Thanks to Bo Branten's filedisk <http://www.acc.umu.se/~bosse/>\n");
+    fprintf(stderr, "  and Arsenal Image Mounter <https://github.com/ArsenalRecon>\n");
     fprintf(stderr, "  and Tom St Denis's LibTomCrypt <http://libtom.org/>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "syntax:\n");
@@ -30,9 +31,10 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "encdisk /encrypt <filename> <key file> [thread num]\n");
     fprintf(stderr, "encdisk /decrypt <filename> <key file> [thread num]\n");
     fprintf(stderr, "encdisk /rekey <filename> <decrypt key file> <encrypt key file> [thread num]\n");
-    fprintf(stderr, "encdisk /mount <filename> [key file] <devicenumber> <drive:>\n");
-    fprintf(stderr, "encdisk /umount <drive:> [/force]\n");
-    fprintf(stderr, "encdisk /status <drive:>\n");
+    fprintf(stderr, "encdisk /mount <filename> [key file]\n");
+    fprintf(stderr, "encdisk /umount <device number> \n");
+    fprintf(stderr, "encdisk /list\n");
+    fprintf(stderr, "encdisk /status <device number>n");
     fprintf(stderr, "encdisk /keyinfo <key file>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "example:\n");
@@ -46,10 +48,10 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "  decrypt disk image with key.bin\n");
     fprintf(stderr, "encdisk /rekey encdisk.img oldkey.bin newkey.bin\n");
     fprintf(stderr, "  change key of disk image\n");
-    fprintf(stderr, "encdisk /mount encdisk.img key.bin 0 Z:\n");
-    fprintf(stderr, "  mount image to Z:\n");
-    fprintf(stderr, "encdisk /umount Z:\n");
-    fprintf(stderr, "  unmount Z:\n");
+    fprintf(stderr, "encdisk /mount encdisk.img key.bin\n");
+    fprintf(stderr, "  mount image\n");
+    fprintf(stderr, "encdisk /umount 00:00:00\n");
+    fprintf(stderr, "  unmount image at Lun=00, TargetId=00, PathId=00\n");
     fprintf(stderr, "encdisk /keyinfo key.bin\n");
     fprintf(stderr, "  get information of key.bin\n");
     return -1;
@@ -63,15 +65,15 @@ static BOOL FullPath(const CHAR * src, SIZE_T dst_size, CHAR * dst)
     return TRUE;
 }
 
+
 INT __cdecl main(INT argc, CHAR* argv[])
 {
     CHAR*                   Command;
-    INT                     DeviceNumber;
+    DEVICE_NUMBER           DeviceNumber;
     CHAR*                   FileName;
     CHAR*                   NewPrivateKey;
     CHAR*                   OldPrivateKey;
     CHAR*                   Option;
-    CHAR                    DriveLetter;
     LARGE_INTEGER           RealFileSize;
     INT                     HardLevel = CRYPT_MAX_HARD;
     INT                     ThreadNum = ENC_DEFAULT_THREAD_NUM;
@@ -200,47 +202,43 @@ INT __cdecl main(INT argc, CHAR* argv[])
         }
         return EncDiskDecrypt(Path1, Path2, ThreadNum);
     }
-    else if((argc == 6 || argc == 5) && !strcmp(Command, "/mount"))
+    else if((argc == 3 || argc == 4) && !strcmp(Command, "/mount"))
     {
-        if(argc == 6) {
-            FileName = argv[2];
+        FileName = argv[2];
+        if(!FullPath(FileName, sizeof(Path1), Path1)) 
+        {
+            return EncDiskSyntax();
+        }
+        if(argc == 4) {
             NewPrivateKey = argv[3];
-            DeviceNumber = atoi(argv[4]);
-            DriveLetter = argv[5][0];
-            if(!FullPath(FileName, sizeof(Path1), Path1)) 
-            {
-                return EncDiskSyntax();
-            }
-
             if(!FullPath(NewPrivateKey, sizeof(Path2), Path2)) 
             {
                 return EncDiskSyntax();
             }
-            return EncDiskMount(Path1, Path2, DeviceNumber, DriveLetter);
-        } else {
-            FileName = argv[2];
-            DeviceNumber = atoi(argv[3]);
-            DriveLetter = argv[4][0];
-            if(!FullPath(FileName, sizeof(Path1), Path1)) 
-            {
-                return EncDiskSyntax();
-            }
-            return EncDiskMount(Path1, NULL, DeviceNumber, DriveLetter);
-        }
+        } 
+        return EncDiskMount(Path1, argc == 3 ? NULL : Path2);
     }
-    else if((argc == 3 || argc == 4) && !strcmp(Command, "/umount"))
+    else if((argc == 3) && !strcmp(Command, "/umount"))
     {
-        DriveLetter = argv[2][0];
-        Force = FALSE;
-        if(argc == 4 && !strcmp(argv[3], "/force"))
-            Force = TRUE;
-        return EncDiskUmount(DriveLetter, Force);
+        if(!GetDeviceNumber(argv[2], &DeviceNumber)) 
+        {
+            return EncDiskSyntax();
+        }
+        return EncDiskUmount(&DeviceNumber);
     }
+    else if(argc == 2 && !strcmp(Command, "/list"))
+    {
+        return EncDiskList();
+    } 
     else if(argc == 3 && !strcmp(Command, "/status"))
     {
-        DriveLetter = argv[2][0];
-        return EncDiskStatus(DriveLetter);
-    } if(argc == 3 && !strcmp(Command, "/keyinfo")) 
+        if(!GetDeviceNumber(argv[2], &DeviceNumber)) 
+        {
+            return EncDiskSyntax();
+        }
+        return EncDiskStatus(&DeviceNumber);
+    } 
+    if(argc == 3 && !strcmp(Command, "/keyinfo")) 
     {
         NewPrivateKey = argv[2];
         if(!FullPath(NewPrivateKey, sizeof(Path1), Path1)) 

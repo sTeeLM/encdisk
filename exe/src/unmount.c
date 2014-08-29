@@ -1,131 +1,46 @@
 #include "control.h"
 
-INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force)
+INT EncDiskUmount(PDEVICE_NUMBER DeviceNumber)
 {
-    CHAR    VolumeName[] = "\\\\.\\ :";
-    CHAR    DriveName[] = " :\\";
-    HANDLE  Device = INVALID_HANDLE_VALUE;
-    DWORD   BytesReturned;
-    BOOL    Locked = FALSE;
+    HANDLE Device = INVALID_HANDLE_VALUE;
+    INT Ret = -1;
+    SRB_IMSCSI_REMOVE_DEVICE SrbData;
+    INT SrbDataLen;
+    DWORD Error;
 
-    VolumeName[4] = DriveLetter;
-    DriveName[0] = DriveLetter;
 
-    PrintMessage("Opening %c\n", VolumeName[4]);
-    Device = CreateFile(
-        VolumeName,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_FLAG_NO_BUFFERING,
-        NULL
-        );
+    if((Device = EncOpenDevice()) == INVALID_HANDLE_VALUE) {
+        PrintLastError("EncDiskMount:");
+        goto err;
+    }    
 
-    if (Device == INVALID_HANDLE_VALUE)
-    {
-        PrintLastError(&VolumeName[4]);
-        return -1;
-    }
+    memset(&SrbData, 0, sizeof(SrbData));
 
-    PrintMessage("Flushing %c\n", VolumeName[4]);
-    if(!FlushFileBuffers(Device)) {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        return -1;
-    }
+    SrbDataLen = sizeof(SrbData);
 
-    PrintMessage("Locking %c\n", VolumeName[4]);
-    if (!(Locked = DeviceIoControl(
-        Device,
-        FSCTL_LOCK_VOLUME,
-        NULL,
-        0,
-        NULL,
-        0,
-        &BytesReturned,
-        NULL
-        )) && !Force)
-    {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        return -1;
-    }
-    
-    if(Locked) {
-        PrintMessage("Lock %c OK!\n", VolumeName[4]);
-    } else {
-        PrintMessage("Lock %c Failed, try force umount!\n", VolumeName[4]);
-    }
+    SrbData.SrbIoControl.HeaderLength = sizeof(SRB_IO_CONTROL);
+    memcpy(SrbData.SrbIoControl.Signature, FUNCTION_SIGNATURE, strlen(FUNCTION_SIGNATURE));
+    SrbData.SrbIoControl.Timeout = 0;
+    SrbData.SrbIoControl.ControlCode = SMP_IMSCSI_REMOVE_DEVICE;
+    SrbData.SrbIoControl.ReturnCode = 0;
+    SrbData.SrbIoControl.Length = SrbDataLen - sizeof(SRB_IO_CONTROL);
 
-    PrintMessage("Closing %c\n", VolumeName[4]);
-    if (!DeviceIoControl(
-        Device,
-        IOCTL_ENC_DISK_CLOSE_FILE,
-        NULL,
-        0,
-        NULL,
-        0,
-        &BytesReturned,
-        NULL
-        ))
-    {
+    SrbData.DeviceNumber.LongNumber = DeviceNumber->LongNumber;
+
+    if(EncCallSrb(Device, (PSRB_IO_CONTROL)&SrbData, SrbDataLen, &Error) != 0) {
+        SetLastError(Error);
         PrintLastError("EncDiskUmount:");
-        CloseHandle(Device);
-        return -1;
+        goto err;
     }
-
-    PrintMessage("Unmounting %c\n", VolumeName[4]);
-    if (!DeviceIoControl(
-        Device,
-        FSCTL_DISMOUNT_VOLUME,
-        NULL,
-        0,
-        NULL,
-        0,
-        &BytesReturned,
-        NULL
-        ))
-    {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        return -1;
-    }
-
-    if(Locked) {
-        PrintMessage("Unlocking %c\n", VolumeName[4]);
-        if (!DeviceIoControl(
-            Device,
-            FSCTL_UNLOCK_VOLUME,
-            NULL,
-            0,
-            NULL,
-            0,
-            &BytesReturned,
-            NULL
-            ) && !Force)
-        {
-            PrintLastError(&VolumeName[4]);
-            CloseHandle(Device);
-            return -1;
-        }
-    }
-
-    CloseHandle(Device);
-    PrintMessage("Remove symbolic link %c\n", VolumeName[4]);
-    if (!DefineDosDevice(
-        DDD_REMOVE_DEFINITION,
-        &VolumeName[4],
-        NULL
-        ) && !Force)
-    {
-        PrintLastError(&VolumeName[4]);
-        return -1;
-    }
-
-    SHChangeNotify(SHCNE_DRIVEREMOVED, SHCNF_PATH, DriveName, NULL);
 
     PrintMessage("%s\n", "EncDiskUmount: success!");
 
-    return 0;
+    Ret = 0;
+err:
+    if(Device != INVALID_HANDLE_VALUE) 
+    {
+        CloseHandle(Device);
+        Device = INVALID_HANDLE_VALUE;
+    }
+    return Ret;
 }

@@ -9,12 +9,37 @@
 #include <time.h>
 #include <shlobj.h>
 
-#include "encdisk.h"
+#include "common.h"
+#include "encdisk_version.h"
 #include "crypt.h"
+
+#define ENC_MAX_DEVICE_CNT 512
 
 void PrintLastError(const CHAR* Prefix);
 
 void PrintMessage(const CHAR* fmt, ...);
+
+INT GetWideLength(const CHAR * src);
+
+INT AsciiToWide(const CHAR * src, WCHAR * dst, SIZE_T dst_len);
+
+INT WideToAscii(const WCHAR * src, CHAR * dst, SIZE_T dst_len);
+
+BOOL GetDeviceNumber(const CHAR * arg, PDEVICE_NUMBER DeviceNumber);
+
+INT EncDiskList();
+
+INT DumpDiskInfo(HANDLE Device, PDEVICE_NUMBER DeviceNumber, BOOL Detail);
+
+HANDLE EncOpenDevice(
+);
+
+INT EncCallSrb(
+    HANDLE Device, 
+    PSRB_IO_CONTROL SrbData, 
+    DWORD SrbDataLen, 
+    DWORD *Error
+);
 
 PCRYPT_CONTEXT ReadKeyFile(
     const CHAR * FileName,
@@ -82,14 +107,12 @@ EncDiskCreate(
 INT
 EncDiskMount(
     const CHAR*                   FileName,
-    const CHAR*                   PrivateKey,
-    INT                     DeviceNumber,
-    CHAR                    DriveLetter
+    const CHAR*                   PrivateKey
 );
 
-INT EncDiskUmount(CHAR DriveLetter, BOOLEAN Force);
+INT EncDiskUmount(PDEVICE_NUMBER DeviceNumber);
 
-INT EncDiskStatus(CHAR DriveLetter);
+INT EncDiskStatus(PDEVICE_NUMBER DeviceNumber);
 
 BOOL RandInitialize();
 

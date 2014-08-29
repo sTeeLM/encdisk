@@ -1,28 +1,26 @@
 #include "control.h"
-
-static VOID
+#include <Wincrypt.h>
+static INT
 GetRandSeq(VOID * out, SIZE_T outlen)
 {
-   ULONG x, n, r, i;
-   ULONG * p;
-   UCHAR * p1;
+   HCRYPTPROV hProvider = 0;
+   INT Ret = -1;
 
-   p = (ULONG *)out;
-   n = (ULONG)(outlen / sizeof(ULONG));
-   r = (ULONG)(outlen % sizeof(ULONG));
+	if (!CryptAcquireContext(&hProvider, 0, 0, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_SILENT))
+		return Ret;
 
-   for( i = 0 ; i < n ; i ++) {
-        x = XRAND();
-        *p = x;
-        p ++;
-   }
-   p1 = (UCHAR *)p;
 
-   for( i = 0 ; i < r; i ++) {
-        x = XRAND();
-        *p1 = (UCHAR)x;
-        p1 ++;
-   }
+	if (!CryptGenRandom(hProvider, (DWORD)outlen, (BYTE*)out))
+	{
+		CryptReleaseContext(hProvider, 0);
+		return Ret;
+	}
+
+	if (!CryptReleaseContext(hProvider, 0))
+		return Ret;
+
+    Ret = 0;
+    return Ret;
 }
 
 static BOOL
@@ -46,7 +44,10 @@ RandFile(HANDLE hFile, LARGE_INTEGER Size)
     for(i = 0; i < n ; i ++) {
         Process = (INT)((i * (LONGLONG)BlockSize * 100UL)/ Size.QuadPart);
         PrintMessage("\b\b\b\b\b%d%%", Process);
-        GetRandSeq(Buffer, BlockSize);
+        if(GetRandSeq(Buffer, BlockSize) != 0) {
+            PrintLastError("EncDiskCreate:");
+            goto err;
+        }
         if(!WriteFile(hFile, Buffer, BlockSize, &Junk, NULL)
             ||Junk != BlockSize) {
             PrintLastError("EncDiskCreate:");

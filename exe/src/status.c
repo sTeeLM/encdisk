@@ -1,76 +1,27 @@
 #include "control.h"
 
-INT EncDiskStatus(CHAR DriveLetter)
+INT EncDiskStatus(PDEVICE_NUMBER DeviceNumber)
 {
-    CHAR                    VolumeName[] = "\\\\.\\ :";
-    HANDLE                  Device;
-    POPEN_FILE_INFORMATION  OpenFileInformation;
-    DWORD                   BytesReturned;
+    HANDLE Device = INVALID_HANDLE_VALUE;
+    INT Ret = -1;
 
-    VolumeName[4] = DriveLetter;
-
-    Device = CreateFile(
-        VolumeName,
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_FLAG_NO_BUFFERING,
-        NULL
-        );
-
-    if (Device == INVALID_HANDLE_VALUE)
-    {
-        PrintLastError(&VolumeName[4]);
-        return -1;
+    if((Device = EncOpenDevice()) == INVALID_HANDLE_VALUE) {
+        PrintLastError("EncDiskStatus:");
+        goto err;
     }
 
-    OpenFileInformation = malloc(sizeof(OPEN_FILE_INFORMATION) + MAX_PATH);
-
-    if (!DeviceIoControl(
-        Device,
-        IOCTL_ENC_DISK_QUERY_FILE,
-        NULL,
-        0,
-        OpenFileInformation,
-        sizeof(OPEN_FILE_INFORMATION) + MAX_PATH,
-        &BytesReturned,
-        NULL
-        ))
-    {
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        free(OpenFileInformation);
-        return -1;
+    if(DumpDiskInfo(Device, DeviceNumber, TRUE) != 0) {
+        goto err;
     }
-
-    if (BytesReturned < sizeof(OPEN_FILE_INFORMATION))
-    {
-        SetLastError(ERROR_INSUFFICIENT_BUFFER);
-        PrintLastError(&VolumeName[4]);
-        CloseHandle(Device);
-        free(OpenFileInformation);
-        return -1;
-    }
-
-    CloseHandle(Device);
-
-    PrintMessage("%c: %.*s %I64u bytes\n",
-        DriveLetter,
-        OpenFileInformation->FileNameLength,
-        OpenFileInformation->FileName,
-        OpenFileInformation->RealFileSize
-        );
-    if(OpenFileInformation->IsEncrypt) {
-        PrintMessage("encrypt disk:\n");
-        DumpKey(&OpenFileInformation->Key);
-    } else {
-        PrintMessage("plain disk\n");
-    }
-
-    free(OpenFileInformation);
 
     PrintMessage("%s\n", "EncDiskStatus: success!");
 
-    return 0;
+    Ret = 0;
+err:
+    if(Device != INVALID_HANDLE_VALUE) 
+    {
+        CloseHandle(Device);
+        Device = INVALID_HANDLE_VALUE;
+    }
+    return Ret;
 }

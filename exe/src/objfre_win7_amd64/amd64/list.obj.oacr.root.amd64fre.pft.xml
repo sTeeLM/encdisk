@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DEFECTS>
+<OACRDEFECTCOUNT>1</OACRDEFECTCOUNT>
+<OACRERRORCOUNT>0</OACRERRORCOUNT>
+<DEFECT _seq="1"><SFA><LINE>26</LINE><COLUMN>23</COLUMN><FILENAME>list.c</FILENAME><FILEPATH>d:\downloads\encdisk.2014.08.25\exe\src\</FILEPATH></SFA><DEFECTCODE>28132</DEFECTCODE><DESCRIPTION>Taking the size of pointer SrbData:  This will yield the size of a pointer (4 or 8), not the size of the object pointed to. Dereference the pointer, or if the size of a pointer was intended, use the pointer type or (void *) instead.</DESCRIPTION><FUNCTION>EncDiskList</FUNCTION><FUNCLINE>3</FUNCLINE><PATH/></DEFECT>
+</DEFECTS>

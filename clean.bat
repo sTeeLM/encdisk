@@ -7,3 +7,4 @@ rmdir /s /q test\obj
 rmdir /s /q libcrypt\obj
 rmdir /s /q exe\obj
 rmdir /s /q sys\obj
+del *.log *.wrn *.err

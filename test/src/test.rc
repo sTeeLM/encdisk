@@ -22,7 +22,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
 #endif //_WIN32
 
-#include "encdisk_version.h"
 
 #ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
@@ -31,8 +30,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION ENC_DISK_VERSION_NUM
- PRODUCTVERSION ENC_DISK_VERSION_NUM
+ FILEVERSION 0,0,0,0
+ PRODUCTVERSION 0,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -49,12 +48,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Mad Cat Stdio\0"
             VALUE "FileDescription", "Encrypt Disk Virtual Disk Driver Test Program\0"
-            VALUE "FileVersion", ENC_DISK_VERSION_STR "\0"
+            VALUE "FileVersion", "0.0.0.0" "\0"
             VALUE "InternalName", "encdisk\0"
             VALUE "LegalCopyright", "Copyright ? 2014 sTeeL\0"
             VALUE "OriginalFilename", "test.exe\0"
             VALUE "ProductName", "encdisk\0"
-            VALUE "ProductVersion", ENC_DISK_VERSION_STR "\0"
+            VALUE "ProductVersion", "0.0.0.0" "\0"
         END
     END
     BLOCK "VarFileInfo"

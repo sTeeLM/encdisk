@@ -97,12 +97,11 @@ UnformatKey(LPBYTE src, SIZE_T s, SIZE_T * d)
 void DumpKey(PCRYPT_KEY key)
 {
     INT i;
-    PrintMessage("signature: ");
+    PrintMessage("signature:\n  ");
     for(i = 0 ; i < sizeof(key->signature); i ++) {
         PrintMessage("%02X", key->signature[i]);
     }
-    PrintMessage("\n");
-    PrintMessage("algorithm:\n");
+    PrintMessage("\nalgorithm:\n");
     for(i = 0 ; i < _countof(key->algo); i ++) {
         PrintMessage("  %s\n", CryptAlgoName(key->algo[i]));
     }
