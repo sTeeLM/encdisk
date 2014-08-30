@@ -12,7 +12,7 @@
 ###
 
 
-TARGETNAME=phdskmnt
+TARGETNAME=encdisk
 TARGETTYPE=DRIVER
 
 # Set warning level.
@@ -70,7 +70,6 @@ TARGETLIBS=$(TARGETLIBS)                                                        
            $(DDK_LIB_PATH)\wdm.lib                                                          \
 	   ..\..\libcrypt\obj\$(DDKBUILDENV)\amd64\crypt.lib
 !endif
-
 INCLUDES=..\inc;                 \
          $(PUBLIC_ROOT)\ddk\inc; ..\..\libcrypt\inc;\
 
@@ -81,7 +80,7 @@ DRIVERTYPE=WDM
 SOURCES = phdskmnt.c     \
           scsi.c       \
           utils.c      \
-          phdskmnt.rc    \
+          encdisk.rc    \
           iodisp.c     \
 	  srbioctl.c   \
 	  proxy.c
@@ -92,7 +91,7 @@ RUN_WPP=$(SOURCES)                      \
         -scan:..\inc\trace.h               \
         -ini:..\inc\trcphdskmnt.ini
 
-#INF_NAME=phdskmnt
+#INF_NAME=encdisk
 
 #NTTARGETFILE1=$(OBJ_PATH)\$(O)\$(INF_NAME).inf
 

@@ -189,7 +189,7 @@ typedef struct {
   SRB_IO_CONTROL        sic;
 } SRB_IMSCSI_CHECK, *PSRB_IMSCSI_CHECK;
 
-#define FUNCTION_SIGNATURE          "PhDskMnt"
+#define FUNCTION_SIGNATURE          "EncDisk"
 
 ///
 /// Control codes for IOCTL_SCSI_MINIPORT requests.

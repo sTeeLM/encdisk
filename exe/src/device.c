@@ -106,10 +106,12 @@ INT DumpDiskInfo(HANDLE Device, PDEVICE_NUMBER DeviceNumber, BOOL Detail)
     
     if(Detail) {
         PrintMessage("size:\n  %I64u\n", SrbData->DiskSize);
-        PrintMessage("type:\n  %s\n", IMSCSI_ENCRYPT(SrbData->Flags) ? "encrypt" : "normal");
+        PrintMessage("type:\n  %s\n", IMSCSI_ENCRYPT(SrbData->Flags) ? "encrypt disk" : "normal disk");
+        PrintMessage("rw/ro:\n  %s\n", IMSCSI_READONLY(SrbData->Flags) ? "ro" : "rw");
         if(IMSCSI_ENCRYPT(SrbData->Flags)) {
             DumpKey(&SrbData->EncKey);
         }
+
     }
 
     Ret = 0;

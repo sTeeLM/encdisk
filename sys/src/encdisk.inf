@@ -1,71 +1,80 @@
 
-; PHDSKMNT.INF
-; Installs pnp version of Arsenal Image Mounter miniport driver
+; ENCDISK.INF
+; Installs pnp version of EncDisk Virtual Disk Driver
 ; Intended for use on 32 or 64 bit editions of Windows Server 2003 or newer,
 ; or Windows Vista or newer.
 ; 
-; Copyright (c) 2012-2014, Arsenal Consulting, Inc. (d/b/a Arsenal Recon) <http://www.ArsenalRecon.com>
-; This source code is available under the terms of the Affero General Public
-; License v3.
-;
-; Please see LICENSE.txt for full license terms, including the availability of
-; proprietary exceptions.
-; Questions, comments, or requests for clarification: http://ArsenalRecon.com/contact/
+; Copyright (c) 2012-2014, Mad Cat Stdio. 
 
 [Version]
 Signature = "$WINDOWS NT$"
 Class = SCSIAdapter
 ClassGUID = {4D36E97B-E325-11CE-BFC1-08002BE10318}
-Provider = %ARSENALRECON%
+Provider = %MADCATSTDIO%
 DriverVer = 02/15/2014,1.1.0007.00007
-CatalogFile = phdskmnt.cat
+CatalogFile = encdisk.cat
 
 [SourceDisksFiles.x86]
-phdskmnt.sys = 1, i386
+encdisk.sys = 1, i386
+encdisk-ctl.exe = 1, i386
 
 [SourceDisksFiles.ia64]
-phdskmnt.sys = 1, ia64
+encdisk.sys = 1, ia64
+encdisk-ctl.exe = 1, ia64
 
 [SourceDisksFiles.amd64]
-phdskmnt.sys = 1, amd64
+encdisk.sys = 1, amd64
+encdisk-ctl.exe = 1, amd64
+
+[EncDisk.amd64.Application]
+encdisk-ctl.exe
+
+[EncDisk.x86.Application]
+encdisk-ctl.exe
+
+[EncDisk.ia64.Application]
+encdisk-ctl.exe
 
 [DestinationDirs]
 DefaultDestDir = 12
+EncDisk.x86.Application = 11
+EncDisk.amd64.Application = 11
+EncDisk.ia64.Application = 11
 
 [Manufacturer]
-%ARSENALRECON%=ARSENALRECON, NTx86, NTia64, NTamd64
+%MADCATSTDIO%=MADCATSTDIO, NTx86, NTia64, NTamd64
 
-[ARSENALRECON.NTx86]
-%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\PhDskMnt
+[MADCATSTDIO.NTx86]
+%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\EncDisk
 
-[ARSENALRECON.NTia64]
-%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\PhDskMnt
+[MADCATSTDIO.NTia64]
+%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\EncDisk
 
-[ARSENALRECON.NTamd64]
-%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\PhDskMnt
+[MADCATSTDIO.NTamd64]
+%PhysicalDiskMounterDeviceDescription% = PhysicalDiskMounterDevice, ROOT\EncDisk
 
 [PhysicalDiskMounterDevice]
-CopyFiles = @phdskmnt.sys
+CopyFiles = @encdisk.sys
 
 [PhysicalDiskMounterDevice.HW]
-AddReg = PhDskMnt_ScsiPort_AddReg
+AddReg = EncDisk_ScsiPort_AddReg
 
 [PhysicalDiskMounterDevice.Services]
-AddService = phdskmnt, %SPSVCINST_ASSOCSERVICE%, PhDskMnt_PnP_Service_Inst
+AddService = encdisk, %SPSVCINST_ASSOCSERVICE%, EncDisk_PnP_Service_Inst
 
-[PhDskMnt_ScsiPort_AddReg]
+[EncDisk_ScsiPort_AddReg]
 HKR, "ScsiPort", "NeedsSystemShutdownNotification", 0x00010001, 1
 
 [SourceDisksNames]
 1 = %DiskId1%,,,
 
-[PhDskMnt_PnP_Service_Inst]
-DisplayName    = "Arsenal Image Mounter Miniport"
+[EncDisk_PnP_Service_Inst]
+DisplayName    = "EncDisk Virtual Disk Driver"
 Description    = "SCSI emulation miniport"
 ServiceType    = %SERVICE_KERNEL_DRIVER%
 StartType      = %SERVICE_DEMAND_START%
 ErrorControl   = %SERVICE_ERROR_NORMAL%
-ServiceBinary  = %12%\phdskmnt.sys
+ServiceBinary  = %12%\encdisk.sys
 LoadOrderGroup = SCSI Miniport
 AddReg         = Service_AddReg
 
@@ -80,10 +89,10 @@ HKR, "Parameters", "DebugLevel",        %REG_DWORD%,  0x000000ff
 HKR, "Parameters", "NumberOfBuses",     %REG_DWORD%,  0x00000001
 
 [Strings]
-ARSENALRECON     = "Arsenal Recon"
+MADCATSTDIO     = "Mad Cat Stdio"
 SCSIClassName    = "SCSI and RAID controllers"
-PhysicalDiskMounterDeviceDescription = "Arsenal Image Mounter"
-DiskId1          = "Arsenal Image Mounter Setup Disk #1"
+PhysicalDiskMounterDeviceDescription = "EncDisk Virtual Disk Driver"
+DiskId1          = "EncDisk Virtual Disk Driver Setup Disk #1"
 
 ;*******************************************
 ;Handy macro substitutions (non-localizable)

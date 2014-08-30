@@ -5,8 +5,9 @@
 
 INT
 EncDiskMount(
-    const CHAR*                   FileName,
-    const CHAR*                   PrivateKey
+    const CHAR* FileName,
+    const CHAR* PrivateKey,
+    BOOL        RO
 )
 {
     CHAR * Pass = NULL;
@@ -83,6 +84,10 @@ EncDiskMount(
     if(Context) {
         SrbData->Flags |= IMSCSI_OPTION_ENCRYPT;
         memcpy(&SrbData->EncKey, &Context->key, sizeof(SrbData->EncKey));
+    }
+
+    if(RO) {
+        SrbData->Flags |= IMSCSI_OPTION_RO;
     }
 
 

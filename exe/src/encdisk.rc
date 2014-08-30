@@ -48,11 +48,11 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Mad Cat Stdio\0"
-            VALUE "FileDescription", "EncDisk Virtual Disk Driver\0"
+            VALUE "FileDescription", "EncDisk Virtual Disk Control\0"
             VALUE "FileVersion", ENC_DISK_VERSION_STR "\0"
             VALUE "InternalName", "encdisk\0"
-            VALUE "LegalCopyright", "Copyright 2014 sTeeL\0"
-            VALUE "OriginalFilename", "encdisk.exe\0"
+            VALUE "LegalCopyright", "Copyright: (c) 2014 sTeeL. All Rights Reserved.\0"
+            VALUE "OriginalFilename", "encdisk-ctl.exe\0"
             VALUE "ProductName", "encdisk\0"
             VALUE "ProductVersion", ENC_DISK_VERSION_STR "\0"
         END

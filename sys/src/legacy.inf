@@ -15,49 +15,49 @@
 
 [Version]
 signature = "$Windows NT$"
-Provider = "ARSENALRECON"
+Provider = "Mad Cat Stdio"
 DriverVer = 02/15/2014,1.1.0007.00007
 
 
 [SourceDisksNames]
-1 = "Arsenal Image Mounter Setup disk"
+1 = "EncDisk Virtual Disk Driver"
 
 
 [SourceDisksFiles.x86]
-phdskmnt.sys = 1, i386
+encdisk.sys = 1, i386
 
 
 [DestinationDirs]
-PhDskMntSysFiles = 12
+EncDiskSysFiles = 12
  
 
 [DefaultInstall.ntx86]
-CopyFiles = PhDskMntSysFiles
+CopyFiles = EncDiskSysFiles
 
 
 [DefaultUninstall.ntx86]
-DelFiles = PhDskMntSysFiles
+DelFiles = EncDiskSysFiles
 
 
-[PhDskMntSysFiles]
-phdskmnt.sys
+[EncDiskSysFiles]
+encdisk.sys
 
 
 [DefaultInstall.ntx86.Services]
-AddService = PhDskMnt, , PhDskMntDrv
+AddService = EncDisk, , EncDiskDrv
 
 
 [DefaultUninstall.ntx86.Services]
-DelService = PhDskMnt
+DelService = EncDisk
 
 
 [PhDskMntDrv]
-DisplayName = "Arsenal Image Mounter Miniport"
+DisplayName = "EncDisk Virtual Disk Driver"
 Description = "SCSI emulation miniport"
 ServiceType = 1
 StartType = 2
 ErrorControl = 0
-ServiceBinary = %12%\phdskmnt.sys
+ServiceBinary = %12%\encdisk.sys
 LoadOrderGroup = SCSI Miniport
 AddReg         = legacy_addreg
 

@@ -80,8 +80,8 @@ typedef KSTART_ROUTINE *PKSTART_ROUTINE;
 
 #endif
 
-#define VENDOR_ID                   L"Arsenal Recon "
-#define VENDOR_ID_ascii             "Arsenal Recon "
+#define VENDOR_ID                   L"Mad Cat Stdio "
+#define VENDOR_ID_ascii             "Mad Cat Stdio "
 #define PRODUCT_ID                  L"Virtual "
 #define PRODUCT_ID_ascii            "Virtual "
 #define PRODUCT_REV                 L"0001"

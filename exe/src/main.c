@@ -26,33 +26,34 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "  and Tom St Denis's LibTomCrypt <http://libtom.org/>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "syntax:\n");
-    fprintf(stderr, "encdisk /create <filename> <size[K|M|G>\n");
-    fprintf(stderr, "encdisk /newkey <key file> <hard level %d->%d>\n", CRYPT_MIN_HARD, CRYPT_MAX_HARD);
-    fprintf(stderr, "encdisk /encrypt <filename> <key file> [thread num]\n");
-    fprintf(stderr, "encdisk /decrypt <filename> <key file> [thread num]\n");
-    fprintf(stderr, "encdisk /rekey <filename> <decrypt key file> <encrypt key file> [thread num]\n");
-    fprintf(stderr, "encdisk /mount <filename> [key file]\n");
-    fprintf(stderr, "encdisk /umount <device number> \n");
-    fprintf(stderr, "encdisk /list\n");
-    fprintf(stderr, "encdisk /status <device number>n");
-    fprintf(stderr, "encdisk /keyinfo <key file>\n");
+    fprintf(stderr, "encdisk-ctl /create <filename> <size[K|M|G>\n");
+    fprintf(stderr, "encdisk-ctl /newkey <key file> <hard level %d->%d>\n", CRYPT_MIN_HARD, CRYPT_MAX_HARD);
+    fprintf(stderr, "encdisk-ctl /encrypt <filename> <key file> [thread num]\n");
+    fprintf(stderr, "encdisk-ctl /decrypt <filename> <key file> [thread num]\n");
+    fprintf(stderr, "encdisk-ctl /rekey <filename> <decrypt key file> <encrypt key file> [thread num]\n");
+    fprintf(stderr, "encdisk-ctl /mount <filename> [key file]\n");
+    fprintf(stderr, "encdisk-ctl /mountro <filename> [key file]\n");
+    fprintf(stderr, "encdisk-ctl /umount <device number> \n");
+    fprintf(stderr, "encdisk-ctl /list\n");
+    fprintf(stderr, "encdisk-ctl /status <device number>\n");
+    fprintf(stderr, "encdisk-ctl /keyinfo <key file>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "example:\n");
-    fprintf(stderr, "encdisk /create encdisk.img 8M\n");
+    fprintf(stderr, "encdisk-ctl /create encdisk.img 8M\n");
     fprintf(stderr, "  create a new empty disk image\n");
-    fprintf(stderr, "encdisk /newkey newkey.bin 9\n");
+    fprintf(stderr, "encdisk-ctl /newkey newkey.bin 9\n");
     fprintf(stderr, "  create new key\n");
-    fprintf(stderr, "encdisk /encrypt encdisk.img key.bin\n");
+    fprintf(stderr, "encdisk-ctl /encrypt encdisk.img key.bin\n");
     fprintf(stderr, "  encrypt disk image with key.bin\n");
-    fprintf(stderr, "encdisk /decrypt encdisk.img key.bin\n");
+    fprintf(stderr, "encdisk-ctl /decrypt encdisk.img key.bin\n");
     fprintf(stderr, "  decrypt disk image with key.bin\n");
-    fprintf(stderr, "encdisk /rekey encdisk.img oldkey.bin newkey.bin\n");
+    fprintf(stderr, "encdisk-ctl /rekey encdisk.img oldkey.bin newkey.bin\n");
     fprintf(stderr, "  change key of disk image\n");
-    fprintf(stderr, "encdisk /mount encdisk.img key.bin\n");
+    fprintf(stderr, "encdisk-ctl /mount encdisk.img key.bin\n");
     fprintf(stderr, "  mount image\n");
-    fprintf(stderr, "encdisk /umount 00:00:00\n");
+    fprintf(stderr, "encdisk-ctl /umount 00:00:00\n");
     fprintf(stderr, "  unmount image at Lun=00, TargetId=00, PathId=00\n");
-    fprintf(stderr, "encdisk /keyinfo key.bin\n");
+    fprintf(stderr, "encdisk-ctl /keyinfo key.bin\n");
     fprintf(stderr, "  get information of key.bin\n");
     return -1;
 }
@@ -216,7 +217,23 @@ INT __cdecl main(INT argc, CHAR* argv[])
                 return EncDiskSyntax();
             }
         } 
-        return EncDiskMount(Path1, argc == 3 ? NULL : Path2);
+        return EncDiskMount(Path1, argc == 3 ? NULL : Path2, FALSE);
+    }
+    else if((argc == 3 || argc == 4) && !strcmp(Command, "/mountro"))
+    {
+        FileName = argv[2];
+        if(!FullPath(FileName, sizeof(Path1), Path1)) 
+        {
+            return EncDiskSyntax();
+        }
+        if(argc == 4) {
+            NewPrivateKey = argv[3];
+            if(!FullPath(NewPrivateKey, sizeof(Path2), Path2)) 
+            {
+                return EncDiskSyntax();
+            }
+        } 
+        return EncDiskMount(Path1, argc == 3 ? NULL : Path2, TRUE);
     }
     else if((argc == 3) && !strcmp(Command, "/umount"))
     {

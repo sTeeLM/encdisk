@@ -106,8 +106,9 @@ EncDiskCreate(
 
 INT
 EncDiskMount(
-    const CHAR*                   FileName,
-    const CHAR*                   PrivateKey
+    const CHAR* FileName,
+    const CHAR* PrivateKey,
+    BOOL        RO
 );
 
 INT EncDiskUmount(PDEVICE_NUMBER DeviceNumber);
