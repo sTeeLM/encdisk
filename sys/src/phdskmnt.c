@@ -372,7 +372,7 @@ MpHwFindAdapter(
                        len,
                        status = SP_RETURN_FOUND;
     PCHAR              pChar;
-    pHW_HBA_EXT        pHBAExt = (pHW_HBA_EXT)DeviceExtension;
+    PHW_HBA_EXT        pHBAExt = (PHW_HBA_EXT)DeviceExtension;
     NTSTATUS           ntstatus;
     
 #if defined(_AMD64_)
@@ -583,7 +583,7 @@ MpHwInitialize(__in PVOID pHBAExt)
 #if 1
 BOOLEAN
 MpHwResetBus(
-             __in pHW_HBA_EXT          pHBAExt,       // Adapter device-object extension from port driver.
+             __in PHW_HBA_EXT          pHBAExt,       // Adapter device-object extension from port driver.
              __in ULONG                BusId
             )
 {
@@ -603,7 +603,7 @@ MpHwResetBus(
 #else
 BOOLEAN
 MpHwResetBus(
-             __in pHW_HBA_EXT          pHBAExt,       // Adapter device-object extension from port driver.
+             __in PHW_HBA_EXT          pHBAExt,       // Adapter device-object extension from port driver.
              __in ULONG                BusId
             )
 {
@@ -630,7 +630,7 @@ MpHwResetBus(
 /**************************************************************************************************/ 
 NTSTATUS                                              
 ImScsiHandleRemoveDevice(
-                         __in pHW_HBA_EXT             pHBAExt,// Adapter device-object extension from port driver.
+                         __in PHW_HBA_EXT             pHBAExt,// Adapter device-object extension from port driver.
                          __in PSCSI_PNP_REQUEST_BLOCK pSrb
                          )
 {
@@ -648,7 +648,7 @@ ImScsiHandleRemoveDevice(
 /**************************************************************************************************/ 
 NTSTATUS                                           
 ImScsiHandleQueryCapabilities(
-                              __in pHW_HBA_EXT             pHBAExt,// Adapter device-object extension from port driver.
+                              __in PHW_HBA_EXT             pHBAExt,// Adapter device-object extension from port driver.
                               __in PSCSI_PNP_REQUEST_BLOCK pSrb
                               )
 {
@@ -661,7 +661,7 @@ ImScsiHandleQueryCapabilities(
 
     RtlZeroMemory(pStorageCapabilities, pSrb->DataTransferLength);
 
-    pStorageCapabilities->Removable = FALSE;
+    pStorageCapabilities->Removable = TRUE;
     pStorageCapabilities->SurpriseRemovalOK = FALSE;
 
     pSrb->SrbStatus = SRB_STATUS_SUCCESS;
@@ -674,7 +674,7 @@ ImScsiHandleQueryCapabilities(
 /**************************************************************************************************/ 
 NTSTATUS                                              
 MpHwHandlePnP(
-              __in pHW_HBA_EXT              pHBAExt,  // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT              pHBAExt,  // Adapter device-object extension from port driver.
               __in PSCSI_PNP_REQUEST_BLOCK  pSrb
              )
 {
@@ -710,7 +710,7 @@ MpHwHandlePnP(
 #ifdef USE_SCSIPORT
 LONG
 ImScsiCompletePendingSrbs(
-                          __in pHW_HBA_EXT pHBAExt  // Adapter device-object extension from port driver.
+                          __in PHW_HBA_EXT pHBAExt  // Adapter device-object extension from port driver.
 )
 {
   pMP_WorkRtnParms pWkRtnParms;
@@ -746,7 +746,7 @@ ImScsiCompletePendingSrbs(
 
 VOID
 MpHwTimer(
-  __in pHW_HBA_EXT pHBAExt
+  __in PHW_HBA_EXT pHBAExt
 )
 {
   ULONG wait = 40000;
@@ -772,7 +772,7 @@ MpHwTimer(
 /**************************************************************************************************/ 
 BOOLEAN
 MpHwStartIo(
-            __in       pHW_HBA_EXT          pHBAExt,  // Adapter device-object extension from port driver.
+            __in       PHW_HBA_EXT          pHBAExt,  // Adapter device-object extension from port driver.
             __in __out PSCSI_REQUEST_BLOCK  pSrb
            )
 {
@@ -842,7 +842,7 @@ MpHwStartIo(
         break;
 
     case SRB_FUNCTION_SHUTDOWN:
-	KdPrint(("PhDskMnt::MpHwStartIo: SRB_FUNCTION_SHUTDOWN.\n"));
+	    KdPrint(("PhDskMnt::MpHwStartIo: SRB_FUNCTION_SHUTDOWN.\n"));
         // Do nothing.
         pSrb->SrbStatus = SRB_STATUS_SUCCESS;
 
@@ -892,7 +892,7 @@ MpHwStartIo(
 /**************************************************************************************************/ 
 SCSI_ADAPTER_CONTROL_STATUS
 MpHwAdapterControl(
-                   __in pHW_HBA_EXT               pHBAExt, // Adapter device-object extension from port driver.
+                   __in PHW_HBA_EXT               pHBAExt, // Adapter device-object extension from port driver.
                    __in SCSI_ADAPTER_CONTROL_TYPE ControlType,
                    __in PVOID                     pParameters
                   )
@@ -963,7 +963,7 @@ MpHwAdapterControl(
 /**************************************************************************************************/ 
 VOID
 ImScsiStopAdapter(
-                  __in pHW_HBA_EXT pHBAExt         // Adapter device-object extension from port driver.
+                  __in PHW_HBA_EXT pHBAExt         // Adapter device-object extension from port driver.
                   )
 {
     SRB_IMSCSI_REMOVE_DEVICE rem_data = { 0 };
@@ -1014,10 +1014,10 @@ ImScsiStopAdapter(
 /*                                                                                                */                         
 /**************************************************************************************************/                         
 VOID
-MpHwFreeAdapterResources(__in pHW_HBA_EXT pHBAExt)
+MpHwFreeAdapterResources(__in PHW_HBA_EXT pHBAExt)
 {
     PLIST_ENTRY           pNextEntry; 
-    pHW_HBA_EXT           pLclHBAExt;
+    PHW_HBA_EXT           pLclHBAExt;
 #if defined(_AMD64_)
     KLOCK_QUEUE_HANDLE    LockHandle;
 #else

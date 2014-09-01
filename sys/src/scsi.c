@@ -36,7 +36,7 @@
 /**************************************************************************************************/     
 VOID
 ScsiExecuteRaidControllerUnit(
-            __in pHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
+            __in PHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
             __in PSCSI_REQUEST_BLOCK  pSrb,
             __in PUCHAR               pResult
             )
@@ -72,7 +72,7 @@ ScsiExecuteRaidControllerUnit(
 
 VOID
 ScsiOpInquiryRaidControllerUnit(
-              __in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb
              )
 {
@@ -122,7 +122,7 @@ done:
 /**************************************************************************************************/     
 VOID
 ScsiExecute(
-            __in pHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
+            __in PHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
             __in PSCSI_REQUEST_BLOCK  pSrb,
             __in PUCHAR               pResult
             )
@@ -244,7 +244,7 @@ Done:
 }                                                     // End ScsiExecute.
 
 VOID
-ScsiOpMediumRemoval(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+ScsiOpMediumRemoval(__in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
                     __in pHW_LU_EXTENSION     device_extension,       // LUN device-object extension from port driver.
                     __in PSCSI_REQUEST_BLOCK  pSrb
                     )
@@ -269,7 +269,7 @@ ScsiOpMediumRemoval(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-ob
 }
 
 VOID
-ScsiOpReadTOC(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+ScsiOpReadTOC(__in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
               __in pHW_LU_EXTENSION     device_extension,       // LUN device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb
              )
@@ -348,7 +348,7 @@ ScsiOpReadTOC(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-object e
 /**************************************************************************************************/     
 VOID
 ScsiOpInquiry(
-              __in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
               __in pHW_LU_EXTENSION     pLUExt,       // LUN device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb
              )
@@ -399,7 +399,7 @@ done:
 /**************************************************************************************************/     
 UCHAR
 ScsiGetLUExtension(
-              __in pHW_HBA_EXT								pHBAExt,      // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT								pHBAExt,      // Adapter device-object extension from port driver.
               pHW_LU_EXTENSION * ppLUExt,
               __in UCHAR									PathId,
               __in UCHAR									TargetId,
@@ -528,7 +528,7 @@ done:
 #ifdef USE_SCSIPORT
 VOID
 ScsiOpVPDRaidControllerUnit(
-          __in pHW_HBA_EXT          pHBAExt,          // Adapter device-object extension from port driver.
+          __in PHW_HBA_EXT          pHBAExt,          // Adapter device-object extension from port driver.
           __in PSCSI_REQUEST_BLOCK  pSrb
          )
 {
@@ -673,7 +673,7 @@ ScsiOpVPDRaidControllerUnit(
 /**************************************************************************************************/     
 VOID
 ScsiOpReadCapacity(
-                   __in pHW_HBA_EXT          pHBAExt, // Adapter device-object extension from port driver.
+                   __in PHW_HBA_EXT          pHBAExt, // Adapter device-object extension from port driver.
                    __in pHW_LU_EXTENSION     pLUExt,  // LUN device-object extension from port driver.
                    __in PSCSI_REQUEST_BLOCK  pSrb
                   )
@@ -744,7 +744,7 @@ ScsiOpReadCapacity(
 /******************************************************************************************************/     
 VOID
 ScsiOpReadWrite(
-                __in pHW_HBA_EXT          pHBAExt, // Adapter device-object extension from port driver.
+                __in PHW_HBA_EXT          pHBAExt, // Adapter device-object extension from port driver.
                 __in pHW_LU_EXTENSION     pLUExt,  // LUN device-object extension from port driver.        
                 __in PSCSI_REQUEST_BLOCK  pSrb,
                 __in PUCHAR               pResult
@@ -923,7 +923,7 @@ ScsiOpReadWrite(
 /**************************************************************************************************/     
 VOID
 ScsiOpModeSense(
-                __in pHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
+                __in PHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
                 __in pHW_LU_EXTENSION     pLUExt,     // LUN device-object extension from port driver.
                 __in PSCSI_REQUEST_BLOCK  pSrb
                )
@@ -958,7 +958,7 @@ ScsiOpModeSense(
 /**************************************************************************************************/     
 VOID
 ScsiOpModeSense10(
-                  __in pHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
+                  __in PHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
                   __in pHW_LU_EXTENSION     pLUExt,     // LUN device-object extension from port driver.
                   __in PSCSI_REQUEST_BLOCK  pSrb
                   )
@@ -994,7 +994,7 @@ ScsiOpModeSense10(
 /**************************************************************************************************/     
 VOID
 ScsiOpReportLuns(                                     
-                 __in __out pHW_HBA_EXT         pHBAExt,   // Adapter device-object extension from port driver.
+                 __in __out PHW_HBA_EXT         pHBAExt,   // Adapter device-object extension from port driver.
                  __in       PSCSI_REQUEST_BLOCK pSrb
                 )
 {

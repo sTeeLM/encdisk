@@ -28,7 +28,7 @@
 /**************************************************************************************************/     
 VOID
 ScsiIoControl(
-              __in pHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT          pHBAExt,    // Adapter device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb,
               __in PUCHAR               pResult
 )
@@ -206,7 +206,7 @@ Done:
 
 VOID
 ImScsiCreateDevice(
-                   __in pHW_HBA_EXT          pHBAExt,
+                   __in PHW_HBA_EXT          pHBAExt,
                    __in PSCSI_REQUEST_BLOCK  pSrb,
                    __in __out PUCHAR         pResult
                    )
@@ -349,7 +349,7 @@ ImScsiCreateDevice(
 
 NTSTATUS
 ImScsiQueryDevice(
-                  __in pHW_HBA_EXT               pHBAExt,
+                  __in PHW_HBA_EXT               pHBAExt,
                   __in PSRB_IMSCSI_CREATE_DATA   create_data,
                   __in PULONG                    Length
                   )
@@ -444,7 +444,7 @@ ImScsiQueryDevice(
 
 NTSTATUS
 ImScsiQueryAdapter(
-                   __in pHW_HBA_EXT                 pHBAExt,
+                   __in PHW_HBA_EXT                 pHBAExt,
                    __in PSRB_IMSCSI_QUERY_ADAPTER   data,
                    __in ULONG                       max_length
                    )
@@ -492,7 +492,7 @@ ImScsiQueryAdapter(
 
 NTSTATUS
 ImScsiSetFlagsDevice(
-                   __in pHW_HBA_EXT                  pHBAExt,
+                   __in PHW_HBA_EXT                  pHBAExt,
                    __in PSRB_IMSCSI_SET_DEVICE_FLAGS device_flags
                    )
 {
@@ -586,7 +586,7 @@ ImScsiSetFlagsDevice(
 
 NTSTATUS
 ImScsiRemoveDevice(
-                   __in pHW_HBA_EXT          pHBAExt,
+                   __in PHW_HBA_EXT          pHBAExt,
                    __in PSRB_IMSCSI_REMOVE_DEVICE data
                    )
 {

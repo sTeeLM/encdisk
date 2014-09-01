@@ -349,7 +349,7 @@ VOID
 ImScsiWorkerThread(__in PVOID Context)
 {
     pHW_LU_EXTENSION            pLUExt = (pHW_LU_EXTENSION)Context;
-    pHW_HBA_EXT                 pHBAExt = NULL;
+    PHW_HBA_EXT                 pHBAExt = NULL;
     pMP_WorkRtnParms            pWkRtnParms = NULL;
     PLIST_ENTRY                 request_list = NULL;
     PKSPIN_LOCK                 request_list_lock = NULL;
@@ -499,7 +499,7 @@ ImScsiDispatchWork(
                    __in pMP_WorkRtnParms        pWkRtnParms
                    )
 {
-    pHW_HBA_EXT               pHBAExt = pWkRtnParms->pHBAExt;
+    PHW_HBA_EXT               pHBAExt = pWkRtnParms->pHBAExt;
     pHW_LU_EXTENSION          pLUExt = pWkRtnParms->pLUExt;
     PSCSI_REQUEST_BLOCK       pSrb = pWkRtnParms->pSrb;
     PETHREAD                  pReqThread = pWkRtnParms->pReqThread;
@@ -705,7 +705,7 @@ ImScsiCleanupLU(
                  )
 {
     LARGE_INTEGER           wait_timeout;
-    pHW_HBA_EXT             pHBAExt = pLUExt->pHBAExt;
+    PHW_HBA_EXT             pHBAExt = pLUExt->pHBAExt;
     pHW_LU_EXTENSION *      ppLUExt = NULL;
     PLIST_ENTRY             list_ptr;
 #if defined(_AMD64_)
@@ -818,7 +818,7 @@ ImScsiCleanupLU(
 
 VOID
 ImScsiCreateLU(
-               __in pHW_HBA_EXT             pHBAExt,
+               __in PHW_HBA_EXT             pHBAExt,
                __in PSCSI_REQUEST_BLOCK     pSrb,
                __in PETHREAD                pReqThread
                )

@@ -172,7 +172,7 @@ typedef struct _HW_HBA_EXT {                          // Adapter device-object e
     UCHAR                          ProductId[17];
     UCHAR                          ProductRevision[5];
     BOOLEAN                        bReportAdapterDone;
-} HW_HBA_EXT, * pHW_HBA_EXT;
+} HW_HBA_EXT, * PHW_HBA_EXT;
 
 // Flag definitions for LUFlags.
 
@@ -188,7 +188,7 @@ typedef struct _ENC_CACHE_BUFFER {
 
 typedef struct _HW_LU_EXTENSION {                     // LUN extension allocated by port driver.
     LIST_ENTRY            List;                       // Pointers to next and previous HW_LU_EXTENSION objects, used in HW_HBA_EXT.
-    pHW_HBA_EXT           pHBAExt;
+    PHW_HBA_EXT           pHBAExt;
     LIST_ENTRY            RequestList;
     KSPIN_LOCK            RequestListLock;   
     KEVENT                RequestEvent;
@@ -227,7 +227,7 @@ typedef struct _HW_SRB_EXTENSION {
 typedef struct _MP_WorkRtnParms {
   LIST_ENTRY           RequestListEntry;
   LIST_ENTRY           ResponseListEntry;
-  pHW_HBA_EXT          pHBAExt;
+  PHW_HBA_EXT          pHBAExt;
   pHW_LU_EXTENSION     pLUExt;
   PSCSI_REQUEST_BLOCK  pSrb;
   PETHREAD             pReqThread;
@@ -241,7 +241,7 @@ enum ResultType {
 #define RegWkBfrSz  0x1000
 
 typedef struct _RegWorkBuffer {
-  pHW_HBA_EXT          pAdapterExt;
+  PHW_HBA_EXT          pAdapterExt;
   UCHAR                Work[256];
 } RegWorkBuffer, * pRegWorkBuffer;
 
@@ -266,7 +266,7 @@ MpHwFindAdapter(
 
 VOID
 MpHwTimer(
-    __in pHW_HBA_EXT DevExt
+    __in PHW_HBA_EXT DevExt
 );
 
 BOOLEAN
@@ -276,16 +276,16 @@ MpHwInitialize(
 
 void
 MpHwReportAdapter(
-                  __in pHW_HBA_EXT
+                  __in PHW_HBA_EXT
                  );
 
 void
 MpHwReportLink(
-               __in pHW_HBA_EXT
+               __in PHW_HBA_EXT
               );
 
 void
-MpHwReportLog(__in pHW_HBA_EXT);
+MpHwReportLog(__in PHW_HBA_EXT);
 
 VOID
 MpHwFreeAdapterResources(
@@ -332,34 +332,34 @@ MpHwAdapterControl(
 
 VOID
 ScsiIoControl(
-              __in pHW_HBA_EXT DevExt,
+              __in PHW_HBA_EXT DevExt,
               __in PSCSI_REQUEST_BLOCK,
               __in PUCHAR             
               );
 
 VOID
 ScsiExecute(
-            __in pHW_HBA_EXT DevExt,
+            __in PHW_HBA_EXT DevExt,
             __in PSCSI_REQUEST_BLOCK,
             __in PUCHAR             
             );
 
 VOID
 ScsiOpInquiry(
-    __in pHW_HBA_EXT DevExt,
+    __in PHW_HBA_EXT DevExt,
     __in pHW_LU_EXTENSION LuExt,
     __in PSCSI_REQUEST_BLOCK Srb
     );
 
 VOID
 ScsiOpInquiryRaidControllerUnit(
-              __in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb
              );
 
 UCHAR
 ScsiGetLUExtension(
-              __in pHW_HBA_EXT								pHBAExt,      // Adapter device-object extension from port driver.
+              __in PHW_HBA_EXT								pHBAExt,      // Adapter device-object extension from port driver.
 			  pHW_LU_EXTENSION * ppLUExt,
               __in UCHAR									PathId,
               __in UCHAR									TargetId,
@@ -368,28 +368,28 @@ ScsiGetLUExtension(
 
 VOID
 ScsiOpReadCapacity(
-    IN pHW_HBA_EXT DevExt,
+    IN PHW_HBA_EXT DevExt,
     IN pHW_LU_EXTENSION LuExt,
     IN PSCSI_REQUEST_BLOCK Srb
     );
 
 VOID
 ScsiOpModeSense(
-    IN pHW_HBA_EXT         DevExt,
+    IN PHW_HBA_EXT         DevExt,
     IN pHW_LU_EXTENSION    LuExt,
     IN PSCSI_REQUEST_BLOCK pSrb
     );
 
 VOID
 ScsiOpModeSense10(
-    IN pHW_HBA_EXT         DevExt,
+    IN PHW_HBA_EXT         DevExt,
     IN pHW_LU_EXTENSION    LuExt,
     IN PSCSI_REQUEST_BLOCK pSrb
     );
 
 VOID                                                                        
 ScsiOpReportLuns(                                 
-    IN pHW_HBA_EXT          DevExt,
+    IN PHW_HBA_EXT          DevExt,
     IN PSCSI_REQUEST_BLOCK  Srb
     );                                                                                   
 
@@ -439,7 +439,7 @@ ImScsiGetAdapterDeviceObject(
 
 LONG
 ImScsiCompletePendingSrbs(
-                          __in pHW_HBA_EXT pHBAExt  // Adapter device-object extension from port driver.
+                          __in PHW_HBA_EXT pHBAExt  // Adapter device-object extension from port driver.
 );
 
 #define StoragePortInitialize                                   ScsiPortInitialize
@@ -472,12 +472,12 @@ ImScsiCompletePendingSrbs(
 #endif
 
 UCHAR MpFindRemovedDevice(
-    __in pHW_HBA_EXT,
+    __in PHW_HBA_EXT,
     __in PSCSI_REQUEST_BLOCK
     );
 
 VOID ImScsiStopAdapter(
-    __in pHW_HBA_EXT DevExt
+    __in PHW_HBA_EXT DevExt
     );
 
 VOID                                                                                                                         
@@ -491,34 +491,34 @@ ImScsiTracingCleanup(__in PVOID);
 
 VOID
 ScsiOpVPDRaidControllerUnit(
-    __in pHW_HBA_EXT,
+    __in PHW_HBA_EXT,
     __in PSCSI_REQUEST_BLOCK
     );
 
 void
-InitializeWmiContext(__in pHW_HBA_EXT);
+InitializeWmiContext(__in PHW_HBA_EXT);
 
 BOOLEAN
 HandleWmiSrb(
-    __in       pHW_HBA_EXT,
+    __in       PHW_HBA_EXT,
     __in __out PSCSI_WMI_REQUEST_BLOCK
     );
 
 VOID
-ScsiOpMediumRemoval(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+ScsiOpMediumRemoval(__in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
                     __in pHW_LU_EXTENSION     device_extension,       // LUN device-object extension from port driver.
                     __in PSCSI_REQUEST_BLOCK  pSrb
                     );
 
 VOID
-ScsiOpReadTOC(__in pHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
+ScsiOpReadTOC(__in PHW_HBA_EXT          pHBAExt,      // Adapter device-object extension from port driver.
               __in pHW_LU_EXTENSION     device_extension,       // LUN device-object extension from port driver.
               __in PSCSI_REQUEST_BLOCK  pSrb
              );
 
 VOID
 ScsiOpReadWrite(
-           __in pHW_HBA_EXT          pDevExt,
+           __in PHW_HBA_EXT          pDevExt,
            __in pHW_LU_EXTENSION     pLUExt,
            __in PSCSI_REQUEST_BLOCK  pSrb,
            __in PUCHAR               pResult
@@ -539,41 +539,41 @@ ImScsiWorkerThread;
 
 VOID
 ImScsiCreateLU(
-                         __in pHW_HBA_EXT             pHBAExt,
+                         __in PHW_HBA_EXT             pHBAExt,
                          __in PSCSI_REQUEST_BLOCK     pSrb,
                          __in PETHREAD                pReqThread
                          );
 
 VOID
 ImScsiCreateDevice(
-                   __in pHW_HBA_EXT          pHBAExt,
+                   __in PHW_HBA_EXT          pHBAExt,
                    __in PSCSI_REQUEST_BLOCK  pSrb,
                    __in __out PUCHAR         pResult
                    );
 
 NTSTATUS
 ImScsiRemoveDevice(
-                   __in pHW_HBA_EXT          pDevExt,
+                   __in PHW_HBA_EXT          pDevExt,
                    __in PSRB_IMSCSI_REMOVE_DEVICE remove_data
                    );
 
 NTSTATUS
 ImScsiQueryDevice(
-                  __in pHW_HBA_EXT               pHBAExt,
+                  __in PHW_HBA_EXT               pHBAExt,
                   __in PSRB_IMSCSI_CREATE_DATA   create_data,
                   __in PULONG                    Length
                   );
 
 NTSTATUS
 ImScsiQueryAdapter(
-                   __in pHW_HBA_EXT                     pDevExt,
+                   __in PHW_HBA_EXT                     pDevExt,
                    __in __out PSRB_IMSCSI_QUERY_ADAPTER query_data,
                    __in ULONG                           max_length
                    );
 
 NTSTATUS
 ImScsiSetFlagsDevice(
-                     __in pHW_HBA_EXT          pDevExt,
+                     __in PHW_HBA_EXT          pDevExt,
                      __in __out PSRB_IMSCSI_SET_DEVICE_FLAGS set_flags_data
                      );
 
