@@ -836,9 +836,8 @@ MpHwStartIo(
 
     case SRB_FUNCTION_POWER:                      
         KdPrint(("PhDskMnt::MpHwStartIo: SRB_FUNCTION_POWER.\n"));
-        // Do nothing.
         pSrb->SrbStatus = SRB_STATUS_SUCCESS;
-
+        ImScsiStopAdapter(pHBAExt);
         break;
 
     case SRB_FUNCTION_SHUTDOWN:
@@ -926,7 +925,7 @@ MpHwAdapterControl(
             KdPrint2(("PhDskMnt::MpHwAdapterControl: ScsiStopAdapter\n"));
 
             // Free memory allocated for disk
-            ImScsiStopAdapter(pHBAExt);
+            //ImScsiStopAdapter(pHBAExt);
 
             break;
 

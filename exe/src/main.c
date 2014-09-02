@@ -60,9 +60,14 @@ INT EncDiskSyntax(void)
 
 static BOOL FullPath(const CHAR * src, SIZE_T dst_size, CHAR * dst)
 {
-    DWORD n = (DWORD)GetFullPathName(src, (DWORD)dst_size, dst, NULL);
-    if(n == 0 || n > dst_size) return FALSE;
-    dst[n] = 0;
+    DWORD n;
+    if(src[0] != '\\') {
+        n = (DWORD)GetFullPathName(src, (DWORD)dst_size, dst, NULL);
+        if(n == 0 || n > dst_size) return FALSE;
+        dst[n] = 0;
+    } else {
+        strncpy(dst, src, dst_size);
+    }
     return TRUE;
 }
 

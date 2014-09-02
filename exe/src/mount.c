@@ -32,7 +32,7 @@ EncDiskMount(
 
     }
 
-    if (FileName[0] == '\\' && FileName[1] == '\\') 
+    if (FileName[0] == '\\') 
     {
         strcpy(FileNameBuffer, FileName);
     }

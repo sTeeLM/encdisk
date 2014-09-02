@@ -7,12 +7,34 @@ ULONG
     IN ULONG  Status
     ); 
 
+BOOL EncCheckDevice(HANDLE Device)
+{
+    SRB_IMSCSI_CHECK SrbData;
+    INT SrbDataLen = sizeof(SrbData);
+    DWORD Error;
+
+    memset(&SrbData, 0, SrbDataLen);
+    
+    SrbData.SrbIoControl.HeaderLength = sizeof(SRB_IO_CONTROL);
+    memcpy(SrbData.SrbIoControl.Signature, FUNCTION_SIGNATURE, strlen(FUNCTION_SIGNATURE));
+    SrbData.SrbIoControl.Timeout = 0;
+    SrbData.SrbIoControl.ControlCode = SMP_IMSCSI_CHECK;
+    SrbData.SrbIoControl.ReturnCode = 0;
+    SrbData.SrbIoControl.Length = SrbDataLen - sizeof(SRB_IO_CONTROL);
+
+    if(EncCallSrb(Device, (PSRB_IO_CONTROL)&SrbData, SrbDataLen, &Error) != 0) {
+       return FALSE;
+    }
+
+    return TRUE;
+}
+
 HANDLE EncOpenDevice()
 {
     HANDLE Device = INVALID_HANDLE_VALUE;
     CHAR DosDevice[MAX_PATH];
     CHAR Target[MAX_PATH];
-    BOOL Found = FALSE;
+
     INT i;
 
     for(i = 0 ; i < ENC_MAX_DEVICE_CNT ; i ++) {
@@ -20,24 +42,26 @@ HANDLE EncOpenDevice()
         if(QueryDosDevice(DosDevice, Target, sizeof(Target)) != 0) {
             if(!strncmp(Target, "\\Device\\Scsi\\phdskmnt", strlen("\\Device\\Scsi\\phdskmnt"))
                 || !strncmp(Target, "\\Device\\RaidPort", strlen("\\Device\\RaidPort"))) {
-                Found = TRUE;
-                break;
+                _snprintf(DosDevice, sizeof(DosDevice), "\\\\?\\Scsi%d:", i);
+                Device = CreateFile(
+                    DosDevice,
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    NULL,
+                    OPEN_EXISTING,
+                    FILE_FLAG_NO_BUFFERING,
+                    NULL
+                    );  
+                if(EncCheckDevice(Device)) {
+                    break;
+                } else {
+                    CloseHandle(Device);
+                    Device = INVALID_HANDLE_VALUE;
+                }
             }
         }
     }
 
-    if(Found) {
-        _snprintf(DosDevice, sizeof(DosDevice), "\\\\?\\Scsi%d:", i);
-        Device = CreateFile(
-            DosDevice,
-            GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_NO_BUFFERING,
-            NULL
-            ); 
-    }
     return Device;
 }
 

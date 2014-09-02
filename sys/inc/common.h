@@ -186,7 +186,7 @@ typedef struct {
 } SRB_IMSCSI_REMOVE_DEVICE, *PSRB_IMSCSI_REMOVE_DEVICE;
 
 typedef struct {
-  SRB_IO_CONTROL        sic;
+  SRB_IO_CONTROL        SrbIoControl;
 } SRB_IMSCSI_CHECK, *PSRB_IMSCSI_CHECK;
 
 #define FUNCTION_SIGNATURE          "EncDisk"
