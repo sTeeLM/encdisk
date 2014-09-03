@@ -50,3 +50,7 @@
 	1. 修正了encdisk-ctl不能正确找到device的bug
 	2. 修正了不能支持休眠的bug
 	3. 修正了encdisk-ctl不支持\Device\Harddisk\xxx\file.img的bug
+
+2014-09-02  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.4.0
+	1. 修正了encdisk-ctl不能支持多img的bug

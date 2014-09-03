@@ -68,6 +68,7 @@ HANDLE EncOpenDevice()
 BOOL GetDeviceNumber(const CHAR * arg, PDEVICE_NUMBER DeviceNumber)
 {
     CHAR Buffer[10] = {0};
+    INT Lun, TargetId, PathId;
 
 
     if(!arg || strlen(arg) != 8)
@@ -75,10 +76,14 @@ BOOL GetDeviceNumber(const CHAR * arg, PDEVICE_NUMBER DeviceNumber)
     
     memcpy(Buffer, arg, 8);
     
-    if(sscanf(Buffer, "%02x:%02x:%02x", 
-        &DeviceNumber->Lun, 
-        &DeviceNumber->TargetId, 
-        &DeviceNumber->PathId) == 3) {
+
+    if(sscanf(Buffer, "%x:%x:%x", 
+        &Lun, 
+        &TargetId, 
+        &PathId) == 3) {
+        DeviceNumber->Lun = (UCHAR)Lun;
+        DeviceNumber->TargetId = (UCHAR)TargetId;
+        DeviceNumber->PathId = (UCHAR)PathId;
         return TRUE;
     }
 
@@ -109,6 +114,7 @@ INT DumpDiskInfo(HANDLE Device, PDEVICE_NUMBER DeviceNumber, BOOL Detail)
     SrbData->SrbIoControl.ControlCode = SMP_IMSCSI_QUERY_DEVICE;
     SrbData->SrbIoControl.ReturnCode = 0;
     SrbData->SrbIoControl.Length = SrbDataLen - sizeof(SRB_IO_CONTROL);
+    SrbData->DeviceNumber.LongNumber = DeviceNumber->LongNumber;
 
     if(EncCallSrb(Device, (PSRB_IO_CONTROL)SrbData, SrbDataLen, &Error) != 0) {
         SetLastError(Error);
