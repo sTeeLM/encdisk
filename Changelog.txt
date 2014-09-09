@@ -58,3 +58,7 @@
 2014-09-09  sTeeL  <steel.mental@gmail.com>
 	* 版本 1.3.5.0
 	1. 添加了encdisk-service.exe，支持关机
+
+2014-09-10  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.6.0
+	1. 修正encdisk-service.exe多硬盘支持的bug

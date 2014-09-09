@@ -7,7 +7,8 @@ typedef struct _ENC_DEVICE_INFO
 {
 	CHAR	Volume;
 	CHAR	FriendName[256];
-	INT		DeviceNumber;
+	ULONG   DeviceNumber;
+    ULONG   PartitionNumber;
 }ENC_DEVICE_INFO, *PENC_DEVICE_INFO;
 
 //53F56307-B6BF-11D0-94F2-00 A0 C9 1E FB 8B
@@ -25,6 +26,7 @@ static INT EncGetDeviceList(PENC_DEVICE_INFO DeviceList, INT ListSize)
 	INT i = 0;
 	DWORD BytesReturned = 0;
 	STORAGE_DEVICE_NUMBER DeviceNum;
+    UINT DriveType;
 
     memset(DeviceList, 0, sizeof(ENC_DEVICE_INFO) * ListSize);
 
@@ -35,21 +37,32 @@ static INT EncGetDeviceList(PENC_DEVICE_INFO DeviceList, INT ListSize)
 		{       
 			_snprintf(DiskPath, sizeof(DiskPath) - 1, "%c:", 'A' + i);
 			_snprintf(DevicePath,sizeof(DevicePath) - 1, "\\\\.\\%s", DiskPath);
-			if (GetDriveType(DiskPath) == DRIVE_FIXED)                 
+            DriveType = GetDriveType(DiskPath);
+            EncMonLog(ENC_LOG_DBG, "EncGetDeviceList: testing Disk %s, DriveType is %d\n", DiskPath, DriveType);
+			if (DriveType == DRIVE_FIXED)                 
 			{       
 				// get this device id
 				HANDLE hDevice = CreateFile(DevicePath, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-				if (DeviceIoControl(hDevice, IOCTL_STORAGE_GET_DEVICE_NUMBER, 
-								    NULL, 0, 
-									&DeviceNum, sizeof(DeviceNum), 
-									&BytesReturned, (LPOVERLAPPED) NULL))
-				{
-					DeviceList[DeviceCnt].Volume = 'A' + i;
-					DeviceList[DeviceCnt].DeviceNumber = DeviceNum.DeviceNumber;
-					DeviceCnt++;
-				}
-				CloseHandle(hDevice);
-				hDevice = NULL;
+                if(hDevice != INVALID_HANDLE_VALUE) {
+                    if (DeviceIoControl(hDevice, IOCTL_STORAGE_GET_DEVICE_NUMBER, 
+                                        NULL, 0, 
+                                        &DeviceNum, sizeof(DeviceNum), 
+                                        &BytesReturned, (LPOVERLAPPED) NULL))
+                    {
+                        DeviceList[DeviceCnt].Volume = 'A' + i;
+                        DeviceList[DeviceCnt].DeviceNumber = DeviceNum.DeviceNumber;
+                        DeviceList[DeviceCnt].PartitionNumber = DeviceNum.PartitionNumber;
+                        EncMonLog(ENC_LOG_DBG, "EncGetDeviceList: Disk %s, DeviceNumber is %d, PartitionNumber is %d\n",
+                            DiskPath, DeviceList[DeviceCnt].DeviceNumber, DeviceList[DeviceCnt].PartitionNumber);
+                        DeviceCnt++;
+                    } else {
+                         EncMonLog(ENC_LOG_ERR, "DeviceIoControl: error on Disk %s error %d\n", DiskPath, GetLastError());
+                    }
+                    CloseHandle(hDevice);
+                    hDevice = NULL;
+                } else {
+                    EncMonLog(ENC_LOG_ERR, "DeviceIoControl: CreateFile on Disk %s error %d\n", DiskPath, GetLastError());
+                }
 			}			
 		}
 		AllDisk = AllDisk >> 1;
@@ -72,7 +85,8 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 	hDevInfo = SetupDiGetClassDevs(&MY_GUID_DEVINTERFACE_DISK,0, 0, DIGCF_PRESENT|DIGCF_DEVICEINTERFACE);       
 	if (hDevInfo == INVALID_HANDLE_VALUE)     
 	{         
-		Res = GetLastError();     
+		Res = GetLastError(); 
+        EncMonLog(ENC_LOG_ERR, "EncGetDeviceFriendName: SetupDiGetClassDevs error %d\n", Res);
 		return Ret;
 	}  
 
@@ -95,6 +109,7 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 		// get device friendly name
 		if (!SetupDiGetDeviceRegistryProperty(hDevInfo, &DeviceInfoData, SPDRP_FRIENDLYNAME, &DataT, (LPBYTE)FriendlyName, BufferSize, &ReqBufSize))
 		{
+            EncMonLog(ENC_LOG_ERR, "EncGetDeviceFriendName: SetupDiGetDeviceRegistryProperty error %d\n", GetLastError());
 			continue;
 		}
 
@@ -104,8 +119,10 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 			if (!SetupDiEnumDeviceInterfaces(hDevInfo, &DeviceInfoData, &MY_GUID_DEVINTERFACE_DISK, Index ++, &Did))
 			{
 				Res = GetLastError();
-				if( ERROR_NO_MORE_DEVICES == Res || ERROR_NO_MORE_ITEMS == Res)
+				if( ERROR_NO_MORE_DEVICES == Res || ERROR_NO_MORE_ITEMS == Res) {
+                    EncMonLog(ENC_LOG_DBG, "EncGetDeviceFriendName: SetupDiEnumDeviceInterfaces no more data\n");
 					break;
+                }
 			}
 
 			// get device interface detail size
@@ -117,8 +134,10 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 					Pdd = (PSP_DEVICE_INTERFACE_DETAIL_DATA)LocalAlloc(LPTR, RequiredSize);
 					Pdd->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
 				}
-				else
+				else {
+                    EncMonLog(ENC_LOG_ERR, "EncGetDeviceFriendName: SetupDiGetDeviceInterfaceDetail error %d\n", GetLastError());
 					break;
+                }
 			}
 
 			// get device interface detail
@@ -127,10 +146,12 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 				Res = GetLastError();
 				LocalFree(Pdd);
 				Pdd = NULL;
+                EncMonLog(ENC_LOG_ERR, "EncGetDeviceFriendName: SetupDiGetDeviceInterfaceDetail error %d\n", GetLastError());
 				break;
 			}
 			
 			// test device number
+            EncMonLog(ENC_LOG_DBG, "EncGetDeviceFriendName: testing on Device %s\n", Pdd->DevicePath);
 			hDevice = CreateFile(Pdd->DevicePath, 0, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 			if (DeviceIoControl(hDevice, IOCTL_STORAGE_GET_DEVICE_NUMBER, 
 								NULL, 0, 
@@ -142,8 +163,7 @@ INT static EncGetDeviceFriendName(PENC_DEVICE_INFO DeviceList, INT ListSize)
 					if (DeviceNum.DeviceNumber == DeviceList[DeviceIndex].DeviceNumber)
 					{
                         strncpy(DeviceList[DeviceIndex].FriendName, FriendlyName, sizeof(DeviceList[DeviceIndex].FriendName) - 1);
-						Ret ++;
-						break;			
+						Ret ++;	
 					}
 				}
 			}
@@ -395,7 +415,10 @@ BOOL EncUnmountDisk(BOOL Forced)
     BOOL Ret = TRUE;
 
     DeviceCnt = EncGetDeviceList(DeviceList, DeviceCnt);
+    EncMonLog(ENC_LOG_DBG, "EncGetDeviceList return %d\n", DeviceCnt);
+
     DeviceCnt = EncGetDeviceFriendName(DeviceList, DeviceCnt);
+    EncMonLog(ENC_LOG_DBG, "EncGetDeviceFriendName return %d\n", DeviceCnt);
     
     
     for(Index = 0 ; Index < DeviceCnt; Index ++) {
