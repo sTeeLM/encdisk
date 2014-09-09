@@ -837,14 +837,12 @@ MpHwStartIo(
     case SRB_FUNCTION_POWER:                      
         KdPrint(("PhDskMnt::MpHwStartIo: SRB_FUNCTION_POWER.\n"));
         pSrb->SrbStatus = SRB_STATUS_SUCCESS;
-        ImScsiStopAdapter(pHBAExt);
         break;
 
     case SRB_FUNCTION_SHUTDOWN:
 	    KdPrint(("PhDskMnt::MpHwStartIo: SRB_FUNCTION_SHUTDOWN.\n"));
-        // Do nothing.
         pSrb->SrbStatus = SRB_STATUS_SUCCESS;
-
+        ImScsiStopAdapter(pHBAExt);
         break;
 
     default:

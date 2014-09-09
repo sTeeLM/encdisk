@@ -80,11 +80,11 @@ typedef KSTART_ROUTINE *PKSTART_ROUTINE;
 
 #endif
 
-#define VENDOR_ID                   L"Mad Cat Stdio "
-#define VENDOR_ID_ascii             "Mad Cat Stdio "
-#define PRODUCT_ID                  L"Virtual "
-#define PRODUCT_ID_ascii            "Virtual "
-#define PRODUCT_REV                 L"0001"
+#define VENDOR_ID                   L"Mad Cat " // 8
+#define VENDOR_ID_ascii             "Mad Cat "
+#define PRODUCT_ID                  L"Enc Virtual Disk"       // 16
+#define PRODUCT_ID_ascii            "Enc Virtual Disk"
+#define PRODUCT_REV                 L"0001"           // 4
 #define PRODUCT_REV_ascii           "0001"
 #define MP_TAG_GENERAL              'cSmI'
 

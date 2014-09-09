@@ -54,3 +54,7 @@
 2014-09-02  sTeeL  <steel.mental@gmail.com>
 	* 版本 1.3.4.0
 	1. 修正了encdisk-ctl不能支持多img的bug
+
+2014-09-09  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.5.0
+	1. 添加了encdisk-service.exe，支持关机
