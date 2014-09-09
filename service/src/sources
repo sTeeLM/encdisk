@@ -1,0 +1,18 @@
+TARGETNAME=encdisk-service
+TARGETPATH=..\obj\$(DDKBUILDENV)
+TARGETTYPE=PROGRAM
+UMTYPE=console
+USE_MSVCRT=1
+INCLUDES=..\..\sys\inc;..\..\libcrypt\inc;..\inc
+!if "$(_BUILDARCH)" == "x86"
+TARGETLIBS=$(SDK_LIB_PATH)\shell32.lib $(SDK_LIB_PATH)\setupapi.lib $(SDK_LIB_PATH)\ntdll.lib ..\..\libcrypt\obj\$(DDKBUILDENV)\i386\crypt.lib
+!else
+TARGETLIBS=$(SDK_LIB_PATH)\shell32.lib $(SDK_LIB_PATH)\setupapi.lib $(SDK_LIB_PATH)\ntdll.lib ..\..\libcrypt\obj\$(DDKBUILDENV)\amd64\crypt.lib
+!endif
+SOURCES=encdisk.rc \
+main.c \
+log.c \
+uninstall.c \
+install.c \
+service.c \
+disk.c
