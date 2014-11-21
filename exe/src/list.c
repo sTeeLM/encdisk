@@ -44,7 +44,7 @@ INT EncDiskList()
         DumpDiskInfo(Device, &SrbData->DeviceList[Index], FALSE);
     }
 
-    PrintMessage("%s\n", "EncDiskUmount: success!");
+    PrintMessage("%s\n", "EncDiskList: success!");
 
     Ret = 0;
 err:

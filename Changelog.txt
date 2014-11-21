@@ -62,3 +62,15 @@
 2014-09-10  sTeeL  <steel.mental@gmail.com>
 	* 版本 1.3.6.0
 	1. 修正encdisk-service.exe多硬盘支持的bug
+
+2014-11-20  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.7.0
+	1. 添加keypass功能修改密码
+	2. 修正了libcrypt中macro的bug
+	3. 删除了算法SAFER,DES3,SKIPJACK，这三个算法太慢，img文件不兼容！！
+	4. 修正了list命令的typo
+
+2014-11-21  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.8.0
+	1. 删除了所有slow算法，只保留8个
+	2. 修正了xfun中memcpy的bug

@@ -5,7 +5,7 @@
 
 #define CONST64(n) n ## ULL
 
-
+#define USE_ASM_MACRO
 
 /* ---- HELPER MACROS ---- */
 #ifdef ENDIAN_NEUTRAL
@@ -59,17 +59,17 @@
 #ifdef ENDIAN_LITTLE
 
 
-
-#define STORE32H(x, y)                                                                     \
+#define STORE32H(x, y)                                                     \
      { (y)[0] = (UCHAR)(((x)>>24)&255); (y)[1] = (UCHAR)(((x)>>16)&255);   \
        (y)[2] = (UCHAR)(((x)>>8)&255); (y)[3] = (UCHAR)((x)&255); }
+
+
 
 #define LOAD32H(x, y)                            \
      { x = ((ULONG)((y)[0] & 255)<<24) | \
            ((ULONG)((y)[1] & 255)<<16) | \
            ((ULONG)((y)[2] & 255)<<8)  | \
            ((ULONG)((y)[3] & 255)); }
-
 
 #define STORE64H(x, y)                        \
     {ULONG64 __t = (x);                       \
@@ -82,10 +82,10 @@
    (y)[5] = __p[2];                           \
    (y)[6] = __p[1];                           \
    (y)[7] = __p[0]; }
- 
+
 #define LOAD64H(x, y)                        \
-    {ULONG64 __t = (x);                       \
-    UCHAR * __p = (UCHAR *)&__t;              \
+    {                                        \
+    UCHAR * __p = (UCHAR *)&(x);              \
    __p[7] = (y)[0];                           \
    __p[6] = (y)[1];                           \
    __p[5] = (y)[2];                           \
@@ -94,55 +94,28 @@
    __p[2] = (y)[5];                           \
    __p[1] = (y)[6];                           \
    __p[0] = (y)[7]; }
-/*
-#define STORE64H(x, y)                                                                     \
-   { (y)[0] = (UCHAR)(((x)>>56)&255); (y)[1] = (UCHAR)(((x)>>48)&255);     \
-     (y)[2] = (UCHAR)(((x)>>40)&255); (y)[3] = (UCHAR)(((x)>>32)&255);     \
-     (y)[4] = (UCHAR)(((x)>>24)&255); (y)[5] = (UCHAR)(((x)>>16)&255);     \
-     (y)[6] = (UCHAR)(((x)>>8)&255); (y)[7] = (UCHAR)((x)&255); }
 
-#define LOAD64H(x, y)                                                      \
-   { x = (((ULONG64)((y)[0] & 255))<<56)|(((ULONG64)((y)[1] & 255))<<48) | \
-         (((ULONG64)((y)[2] & 255))<<40)|(((ULONG64)((y)[3] & 255))<<32) | \
-         (((ULONG64)((y)[4] & 255))<<24)|(((ULONG64)((y)[5] & 255))<<16) | \
-         (((ULONG64)((y)[6] & 255))<<8)|(((ULONG64)((y)[7] & 255))); }
-*/
-
-#ifdef ENDIAN_32BITWORD 
 
 #define STORE32L(x, y)        \
      { ULONG  __t = (x); XMEMCPY(y, &__t, 4); }
 
+
 #define LOAD32L(x, y)         \
      XMEMCPY(&(x), y, 4);
 
-#define STORE64L(x, y)                                                                     \
+
+#define STORE64L(x, y)                                                     \
      { (y)[7] = (UCHAR)(((x)>>56)&255); (y)[6] = (UCHAR)(((x)>>48)&255);   \
        (y)[5] = (UCHAR)(((x)>>40)&255); (y)[4] = (UCHAR)(((x)>>32)&255);   \
        (y)[3] = (UCHAR)(((x)>>24)&255); (y)[2] = (UCHAR)(((x)>>16)&255);   \
        (y)[1] = (UCHAR)(((x)>>8)&255); (y)[0] = (UCHAR)((x)&255); }
+
 
 #define LOAD64L(x, y)                                                       \
      { x = (((ULONG64)((y)[7] & 255))<<56)|(((ULONG64)((y)[6] & 255))<<48)| \
            (((ULONG64)((y)[5] & 255))<<40)|(((ULONG64)((y)[4] & 255))<<32)| \
            (((ULONG64)((y)[3] & 255))<<24)|(((ULONG64)((y)[2] & 255))<<16)| \
            (((ULONG64)((y)[1] & 255))<<8)|(((ULONG64)((y)[0] & 255))); }
-
-#else /* 64-bit words then  */
-
-#define STORE32L(x, y)        \
-     { ULONG __t = (x); XMEMCPY(y, &__t, 4); }
-
-#define LOAD32L(x, y)         \
-     { XMEMCPY(&(x), y, 4); x &= 0xFFFFFFFF; }
-
-#define STORE64L(x, y)        \
-     { ULONG64 __t = (x); XMEMCPY(y, &__t, 8); }
-
-#define LOAD64L(x, y)         \
-    { XMEMCPY(&(x), y, 8); }
-
-#endif /* ENDIAN_64BITWORD */
 
 #endif /* ENDIAN_LITTLE */
 

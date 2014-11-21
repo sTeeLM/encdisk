@@ -8,11 +8,11 @@ void XMEMCPY(void *dest, const void *src, SIZE_T n)
 	UCHAR * p1 = (UCHAR *) dest;
 	UCHAR * p2 = (UCHAR *) src;
 
-	if(NULL != xfun.xmemcpy)
-		xfun.xmemcpy(dest, src, n);
 
-	if(p1 == p2)
-		return ;
+	if(NULL != xfun.xmemcpy) {
+		xfun.xmemcpy(dest, src, n);
+        return;
+    }
 
 	while(n --) {
 		*p1 = *p2;

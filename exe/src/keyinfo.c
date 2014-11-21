@@ -17,7 +17,7 @@ INT EncKeyInfo(
 
     DumpKey(&Context->key);
 
-    PrintMessage("%s\n", "KeyInfo: success!");
+    PrintMessage("%s\n", "EncKeyInfo: success!");
     Ret = 0;
 err:
     if(NULL != Pass) {

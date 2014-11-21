@@ -54,6 +54,10 @@ INT EncKeyInfo(
     const CHAR * PrivateKey
 );
 
+INT EncKeyPass(
+    const CHAR * PrivateKey
+);
+
 INT EncDiskEncrypt(
     const CHAR * FileName, 
     const CHAR * PrivateKey,

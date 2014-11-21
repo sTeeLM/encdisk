@@ -26,6 +26,7 @@
 
 CRYPT_CONTEXT context, context1;
 
+
 void test_all_cipher()
 {
 	/* test all cypher */
@@ -34,20 +35,13 @@ void test_all_cipher()
 	printf("blowfish_desc: %d\n", blowfish_desc.test());
 	printf("rc5_desc: %d\n", rc5_desc.test());
 	printf("rc6_desc: %d\n", rc6_desc.test());
-	printf("rc2_desc: %d\n", rc2_desc.test());
-	printf("saferp_desc: %d\n", saferp_desc.test());
 
 	printf("aes_desc: %d\n", aes_desc.test());
 	printf("xtea_desc: %d\n", xtea_desc.test());
 	printf("twofish_desc: %d\n", twofish_desc.test());
-	printf("des3_desc: %d\n", rc6_desc.test());
-	printf("cast5_desc: %d\n", rc2_desc.test());
-	printf("noekeon_desc: %d\n", saferp_desc.test());
+	printf("cast5_desc: %d\n", cast5_desc.test());
+	printf("noekeon_desc: %d\n", noekeon_desc.test());
 
-	printf("skipjack_desc: %d\n", skipjack_desc.test());
-	printf("khazad_desc: %d\n", khazad_desc.test());
-	printf("kseed_desc: %d\n", kseed_desc.test());
-	printf("kasumi_desc: %d\n", kasumi_desc.test());
 
     printf("test_all_cipher passed----------------------------------------\n");
 }
@@ -340,6 +334,8 @@ void mymemcpy(void *dest, const void *src, SIZE_T n)
     RtlCopyMemory(dest, src, n);
 }
 
+
+
 INT mymemcmp(const void *s1, const void *s2, SIZE_T n)
 {
     return (INT)memcmp(s1, s2, n);
@@ -352,7 +348,7 @@ void test_n_cluster()
 	unsigned char* plain;
     unsigned char* cipher;
     unsigned char* check;
-    int cluster_cnt = 64;
+    int cluster_cnt = 128;
     int size = cluster_cnt * CRYPT_CLUSTER_SIZE;
     time_t begin, end;
 
@@ -423,6 +419,82 @@ void test_n_cluster()
     free(cipher);
     free(check);
 	printf("test_n_cluster passed!----------------------------------------\n");
+}
+
+/* multi cluster test */
+void test_n_cluster_speed()
+{
+	int ret = 0, i, j;
+	unsigned char* plain;
+    unsigned char* cipher;
+    unsigned char* check;
+    int cluster_cnt = 128;
+    int size = cluster_cnt * CRYPT_CLUSTER_SIZE;
+    time_t begin, end;
+
+    printf("test_n_cluster_speed----------------------------------------\n");
+
+    plain = malloc(size);
+    cipher = malloc(size);
+    check = malloc(size);
+
+	for(i = 0 ; i < size; i ++) {
+		plain[i] = 'A';
+		check[i] = 'A';
+	}
+
+    memset(&xfun, 0, sizeof(xfun));
+
+    xfun.xrand = myrand;
+    xfun.xmemcpy = mymemcpy;
+    xfun.xmemcmp = mymemcmp;
+
+    if(CryptInitialize(&xfun) != CRYPT_OK) {
+        printf("CryptInitialize failed\n");
+        exit(1);
+    }
+    for(j = CRYPT_ALGO_MIN; j <= CRYPT_ALGO_MAX; j ++) {
+        ret = CryptGenContextWithAlgo((CHAR)j, &context);
+        if(ret != 0) {
+            printf("CryptGenContextAlgo ret %d\n", ret);
+            exit(0);
+        }
+        begin = time(NULL);
+        for(i = 0 ; i < cluster_cnt; i ++) {
+            
+            ret = CryptEncryptCluster(&context, plain + i * CRYPT_CLUSTER_SIZE, 
+                cipher + i * CRYPT_CLUSTER_SIZE, i);
+            if(ret != 0) {
+                printf("CryptEncrypt ret %d\n", ret);
+                exit(0);
+            }
+            
+
+            ret = CryptDecryptCluster(&context, cipher + i * CRYPT_CLUSTER_SIZE,
+                plain + i * CRYPT_CLUSTER_SIZE, i);
+            if(ret != 0) {
+                printf("CryptDecrypt ret %d\n", ret);
+                exit(0);
+            }
+
+        }
+        end = time(NULL);
+        printf("%d cluster use %d sec at algo %d\n", cluster_cnt, end - begin, j);
+        if(CryptCleanupContext(&context) != CRYPT_OK) {
+            printf("CryptCleanupContext failed\n");
+            exit(0);
+        }
+
+    }
+
+    if(CryptCleanup() != CRYPT_OK) {
+        printf("CryptCleanup failed\n");
+        exit(0);
+    }
+    free(plain);
+    free(cipher);
+    free(check);
+	printf("test_n_cluster_speed passed!----------------------------------------\n");
 }
 
 /* key test */
@@ -530,6 +602,7 @@ void test_key()
 	printf("test_key passed!----------------------------------------\n");
 }
 
+
 int __cdecl main(int argc, char* argv[])
 {
     srand((int)time(NULL));
@@ -539,6 +612,7 @@ int __cdecl main(int argc, char* argv[])
     test_one_sector();
 	test_one_cluster();
     test_n_cluster();
+    test_n_cluster_speed();
     test_key();
 	return 0;
 }

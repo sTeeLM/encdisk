@@ -25,6 +25,7 @@ encrypt.c \
 decrypt.c \
 newkey.c \
 keyinfo.c \
+keypass.c \
 device.c \
 char.c \
 list.c

@@ -9,23 +9,12 @@ base64_encode.c \
 base64_decode.c \
 aes.c \
 aes_tab.c \
-anubis.c \
 blowfish.c \
 cast5.c \
-des.c \
-kasumi.c \
-khazad.c \
-kseed.c \
-multi2.c \
 noekeon.c \
 nop.c \
-rc2.c \
 rc5.c \
 rc6.c \
-safer.c \
-saferp.c \
-safer_tab.c \
-skipjack.c \
 twofish.c \
 twofish_tab.c \
 xtea.c\
@@ -41,8 +30,6 @@ sha224.c \
 sha512.c \
 sha256.c \
 sha384.c \
-whirl.c \
-tiger.c \
 crypt_register_cipher.c \
 crypt_unregister_cipher.c \
 crypt_cipher_descriptor.c \

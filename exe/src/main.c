@@ -37,6 +37,7 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "encdisk-ctl /list\n");
     fprintf(stderr, "encdisk-ctl /status <device number>\n");
     fprintf(stderr, "encdisk-ctl /keyinfo <key file>\n");
+    fprintf(stderr, "encdisk-ctl /keypass <key file>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "example:\n");
     fprintf(stderr, "encdisk-ctl /create encdisk.img 8M\n");
@@ -55,6 +56,8 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "  unmount image at Lun=00, TargetId=00, PathId=00\n");
     fprintf(stderr, "encdisk-ctl /keyinfo key.bin\n");
     fprintf(stderr, "  get information of key.bin\n");
+    fprintf(stderr, "encdisk-ctl /keypass key.bin\n");
+    fprintf(stderr, "  change password of key.bin\n");
     return -1;
 }
 
@@ -268,6 +271,15 @@ INT __cdecl main(INT argc, CHAR* argv[])
             return EncDiskSyntax();
         }
         return EncKeyInfo(Path1);
+    }
+    if(argc == 3 && !strcmp(Command, "/keypass")) 
+    {
+        NewPrivateKey = argv[2];
+        if(!FullPath(NewPrivateKey, sizeof(Path1), Path1)) 
+        {
+            return EncDiskSyntax();
+        }
+        return EncKeyPass(Path1);
     }
     else
     {

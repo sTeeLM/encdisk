@@ -81,6 +81,21 @@ enum {
 #define CRYPT_MIN_HARD 0
 #define CRYPT_MAX_HARD (CRYPT_SLOT_NUMBER)
 
+#define CRYPT_ALGO_NOP 0
+#define CRYPT_ALGO_BLOWFISH 1
+#define CRYPT_ALGO_RC5 2
+#define CRYPT_ALGO_RC6 3
+#define CRYPT_ALGO_AES 4
+#define CRYPT_ALGO_XTEA 5
+#define CRYPT_ALGO_TWOFISH 6
+#define CRYPT_ALGO_CAST5 7
+#define CRYPT_ALGO_NOEKEON 8
+
+#define CRYPT_ALGO_MIN CRYPT_ALGO_NOP
+#define CRYPT_ALGO_MAX CRYPT_ALGO_NOEKEON
+
+#define CRYPT_ALGO_NUMBER (CRYPT_ALGO_MAX - CRYPT_ALGO_MIN + 1)
+
 #pragma pack(push, r1, 1)
 typedef struct _CRYPT_KEY {
     UCHAR signature[16];   // md5 hash
@@ -114,6 +129,7 @@ INT CryptInitialize(PCRYPT_XFUN xfun);
 INT CryptCleanup(void);
 
 INT CryptGenContext(INT hard, PCRYPT_CONTEXT context);
+INT CryptGenContextWithAlgo(CHAR algo, PCRYPT_CONTEXT context);
 INT CryptRestoreContext(PCRYPT_CONTEXT context);
 INT CryptCleanupContext(PCRYPT_CONTEXT context);
 

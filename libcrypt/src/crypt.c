@@ -2,25 +2,6 @@
 
 #include <stddef.h>
 
-#define CRYPT_ALGO_NOP 0
-#define CRYPT_ALGO_BLOWFISH 1
-#define CRYPT_ALGO_RC5 2
-#define CRYPT_ALGO_RC6 3
-#define CRYPT_ALGO_RC2 4
-#define CRYPT_ALGO_SAFER 5
-#define CRYPT_ALGO_AES 6
-#define CRYPT_ALGO_XTEA 7
-#define CRYPT_ALGO_TWOFISH 8
-#define CRYPT_ALGO_DES3 9
-#define CRYPT_ALGO_CAST5 10
-#define CRYPT_ALGO_NOEKEON 11
-#define CRYPT_ALGO_SKIPJACK 12
-#define CRYPT_ALGO_KHAZAD 13
-#define CRYPT_ALGO_KSEED 14
-#define CRYPT_ALGO_KASUMI 15
-
-#define CRYPT_ALGO_NUMBER 16
-
 
 static INT CryptVerifyKey(const PCRYPT_KEY key)
 {
@@ -43,6 +24,7 @@ static INT CryptVerifyKey(const PCRYPT_KEY key)
 INT CryptCleanupContext(PCRYPT_CONTEXT context)
 {
     INT i;
+
     for(i = 0 ; i < CRYPT_SLOT_NUMBER; i ++){
         if(cbc_done(
             &context->cbc[i]
@@ -83,12 +65,54 @@ INT CryptRestoreContext(PCRYPT_CONTEXT context)
     return CRYPT_OK;
 }
 
-INT CryptGenContext(INT hard, PCRYPT_CONTEXT context)
+INT CryptGenContextWithAlgo(CHAR algo, PCRYPT_CONTEXT context)
 {
     INT i, keysize;
     UCHAR key[CRYPT_KEY_SIZE];
     UCHAR iv[CRYPT_IV_SIZE];
 	UCHAR *p = NULL;
+
+    if(algo <= CRYPT_ALGO_MIN)
+        algo = CRYPT_ALGO_MIN;
+
+    if(algo >= CRYPT_ALGO_MAX)
+        algo = CRYPT_ALGO_MAX;
+
+    RngGetBytes(context, sizeof(CRYPT_CONTEXT));
+
+    /* fill algo array */
+    for(i = 0 ; i < CRYPT_SLOT_NUMBER; i ++) {
+        context->key.algo[i] = algo;
+
+        if(cipher_descriptor[context->key.algo[i]].test() != CRYPT_OK)
+            goto err;
+        if(RngGetBytes(key, sizeof(key)) == 0)
+            goto err;
+        if(RngGetBytes(iv, sizeof(iv)) == 0)
+            goto err;
+        XMEMCPY(context->key.key[i], key, sizeof(context->key.key[i]));
+        XMEMCPY(context->key.iv[i], iv, sizeof(context->key.iv[i]));        
+    }
+    /* fill cbc struct */
+    if(CryptRestoreContext(context) != CRYPT_OK) goto err;
+
+	p = (UCHAR*)(&context->key);
+    p+= sizeof(context->key.signature);
+
+	if(GenMd5(p, sizeof(CRYPT_KEY) - sizeof(context->key.signature), context->key.signature) != CRYPT_OK) goto err;
+
+    return CRYPT_OK;
+err:
+    return CRYPT_ERROR;
+}
+
+INT CryptGenContext(INT hard, PCRYPT_CONTEXT context)
+{
+    INT i, keysize, j;
+    UCHAR key[CRYPT_KEY_SIZE];
+    UCHAR iv[CRYPT_IV_SIZE];
+	UCHAR *p = NULL;
+    CHAR algo;
 
     if(hard < CRYPT_MIN_HARD )
         hard = CRYPT_MIN_HARD;
@@ -100,13 +124,26 @@ INT CryptGenContext(INT hard, PCRYPT_CONTEXT context)
 
     /* fill algo array */
     for(i = 0 ; i < CRYPT_SLOT_NUMBER; i ++) {
-        if(i < hard)
-            while((context->key.algo[i] = XRAND() % CRYPT_ALGO_NUMBER) == CRYPT_ALGO_NOP);
+        
+        if(i < hard) {
+again:
+            while((algo = XRAND() % CRYPT_ALGO_NUMBER) == CRYPT_ALGO_NOP);
+
+            for(j = 0; j < i; j ++) {
+                if(algo == context->key.algo[j]) {
+                    goto again;
+                }
+            }
+            context->key.algo[i] = algo;
+        }
         else
             context->key.algo[i] = CRYPT_ALGO_NOP;
 
+        
+
         if(cipher_descriptor[context->key.algo[i]].test() != CRYPT_OK)
             goto err;
+
         if(RngGetBytes(key, sizeof(key)) == 0)
             goto err;
         if(RngGetBytes(iv, sizeof(iv)) == 0)
@@ -114,6 +151,8 @@ INT CryptGenContext(INT hard, PCRYPT_CONTEXT context)
         XMEMCPY(context->key.key[i], key, sizeof(context->key.key[i]));
         XMEMCPY(context->key.iv[i], iv, sizeof(context->key.iv[i]));
     }
+
+    
 
     /* fill cbc struct */
     if(CryptRestoreContext(context) != CRYPT_OK) goto err;
@@ -349,23 +388,12 @@ INT CryptInitialize(PCRYPT_XFUN newfun)
     if(register_cipher(&blowfish_desc) != CRYPT_ALGO_BLOWFISH ) return CRYPT_ERROR;
     if(register_cipher(&rc5_desc) != CRYPT_ALGO_RC5 ) return CRYPT_ERROR;
     if(register_cipher(&rc6_desc) != CRYPT_ALGO_RC6 ) return CRYPT_ERROR;
-    if(register_cipher(&rc2_desc) != CRYPT_ALGO_RC2 ) return CRYPT_ERROR;
-    
-    
-
-    if(register_cipher(&saferp_desc) != CRYPT_ALGO_SAFER ) return CRYPT_ERROR;
     if(register_cipher(&aes_desc) != CRYPT_ALGO_AES ) return CRYPT_ERROR;
     if(register_cipher(&xtea_desc) != CRYPT_ALGO_XTEA ) return CRYPT_ERROR;
     if(register_cipher(&twofish_desc) != CRYPT_ALGO_TWOFISH ) return CRYPT_ERROR;
-    if(register_cipher(&des3_desc) != CRYPT_ALGO_DES3 ) return CRYPT_ERROR;
 
     if(register_cipher(&cast5_desc) != CRYPT_ALGO_CAST5 ) return CRYPT_ERROR;
     if(register_cipher(&noekeon_desc) != CRYPT_ALGO_NOEKEON ) return CRYPT_ERROR;
-    if(register_cipher(&skipjack_desc) != CRYPT_ALGO_SKIPJACK ) return CRYPT_ERROR;
-    if(register_cipher(&khazad_desc) != CRYPT_ALGO_KHAZAD ) return CRYPT_ERROR;
-    if(register_cipher(&kseed_desc) != CRYPT_ALGO_KSEED ) return CRYPT_ERROR;
-
-    if(register_cipher(&kasumi_desc) != CRYPT_ALGO_KASUMI ) return CRYPT_ERROR;
 
 	return CRYPT_OK;
 }
@@ -379,21 +407,13 @@ INT CryptCleanup(void)
     if(unregister_cipher(&blowfish_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&rc5_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&rc6_desc) != CRYPT_OK) return CRYPT_ERROR;
-    if(unregister_cipher(&rc2_desc) != CRYPT_OK) return CRYPT_ERROR;
 
-    if(unregister_cipher(&saferp_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&aes_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&xtea_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&twofish_desc) != CRYPT_OK) return CRYPT_ERROR;
-    if(unregister_cipher(&des3_desc) != CRYPT_OK) return CRYPT_ERROR;
 
     if(unregister_cipher(&cast5_desc) != CRYPT_OK) return CRYPT_ERROR;
     if(unregister_cipher(&noekeon_desc) != CRYPT_OK) return CRYPT_ERROR;
-    if(unregister_cipher(&skipjack_desc) != CRYPT_OK) return CRYPT_ERROR;
-    if(unregister_cipher(&khazad_desc) != CRYPT_OK) return CRYPT_ERROR;
-    if(unregister_cipher(&kseed_desc) != CRYPT_OK) return CRYPT_ERROR;
-
-    if(unregister_cipher(&kasumi_desc) != CRYPT_OK) return CRYPT_ERROR;
 
 	return CRYPT_OK;
 }
