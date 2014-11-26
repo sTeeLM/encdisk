@@ -42,7 +42,7 @@ INT EncDiskSyntax(void)
     fprintf(stderr, "example:\n");
     fprintf(stderr, "encdisk-ctl /create encdisk.img 8M\n");
     fprintf(stderr, "  create a new empty disk image\n");
-    fprintf(stderr, "encdisk-ctl /newkey newkey.bin 9\n");
+    fprintf(stderr, "encdisk-ctl /newkey newkey.bin %d\n", CRYPT_MAX_HARD);
     fprintf(stderr, "  create new key\n");
     fprintf(stderr, "encdisk-ctl /encrypt encdisk.img key.bin\n");
     fprintf(stderr, "  encrypt disk image with key.bin\n");

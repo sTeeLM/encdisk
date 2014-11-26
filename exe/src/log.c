@@ -25,7 +25,7 @@ void PrintLastError(const CHAR* Prefix)
         NULL
         );
 
-    PrintMessage("%s %s", Prefix, (LPTSTR) lpMsgBuf);
+    PrintMessage("%s %s\n", Prefix, (LPTSTR) lpMsgBuf);
 
     LocalFree(lpMsgBuf);
 }
