@@ -711,6 +711,7 @@ err:
             free(Threads[j]);
         }
     }
-    DeleteResumeFile(FileName);
+    if(Ret == 0)
+        DeleteResumeFile(FileName);
     return Ret;
 }
