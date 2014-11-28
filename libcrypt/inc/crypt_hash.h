@@ -42,14 +42,6 @@ struct md4_state {
 };
 #endif
 
-#ifdef LTC_TIGER
-struct tiger_state {
-    ULONG64 state[3], length;
-    ULONG curlen;
-    UCHAR buf[64];
-};
-#endif
-
 #ifdef LTC_MD2
 struct md2_state {
     UCHAR chksum[16], X[48], buf[16];
@@ -89,14 +81,6 @@ struct rmd320_state {
 };
 #endif
 
-#ifdef LTC_WHIRLPOOL
-struct whirlpool_state {
-    ULONG64 length, state[8];
-    UCHAR buf[64];
-    ULONG curlen;
-};
-#endif
-
 #ifdef LTC_CHC_HASH
 struct chc_state {
     ULONG64 length;
@@ -105,13 +89,22 @@ struct chc_state {
 };
 #endif
 
+#ifdef LTC_CRC32
+struct crc32_state {
+    ULONG64 length;
+    UCHAR buf[64];
+    ULONG curlen;
+    ULONG state;
+};
+#endif
+
 typedef union Hash_state {
     CHAR dummy[1];
 #ifdef LTC_CHC_HASH
     struct chc_state chc;
 #endif
-#ifdef LTC_WHIRLPOOL
-    struct whirlpool_state whirlpool;
+#ifdef LTC_CRC32
+    struct crc32_state crc32;
 #endif
 #ifdef LTC_SHA512
     struct sha512_state sha512;
@@ -130,9 +123,6 @@ typedef union Hash_state {
 #endif
 #ifdef LTC_MD2
     struct md2_state    md2;
-#endif
-#ifdef LTC_TIGER
-    struct tiger_state  tiger;
 #endif
 #ifdef LTC_RIPEMD128
     struct rmd128_state rmd128;
@@ -319,6 +309,14 @@ INT rmd320_process(hash_state * md, const UCHAR *in, ULONG inlen);
 INT rmd320_done(hash_state * md, UCHAR *hash);
 INT rmd320_test(void);
 extern const struct ltc_hash_descriptor rmd320_desc;
+#endif
+
+#ifdef LTC_CRC32
+INT crc32_init(hash_state * md);
+INT crc32_process(hash_state * md, const UCHAR *in, ULONG inlen);
+INT crc32_done(hash_state * md, UCHAR *hash);
+INT crc32_test(void);
+extern const struct ltc_hash_descriptor crc32_desc;
 #endif
 
 INT find_hash(const CHAR *name);

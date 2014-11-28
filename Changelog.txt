@@ -78,3 +78,7 @@
 2014-11-24  sTeeL  <steel.mental@gmail.com>
 	* 版本 1.3.9.0
 	1. 为encrypt/rekey和decrypt命令添加异常中断重试的功能
+
+2014-11-28  sTeeL  <steel.mental@gmail.com>
+	* 版本 1.3.10.0
+	1. 修改异常中断重试的功能，使之更强壮

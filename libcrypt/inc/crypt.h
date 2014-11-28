@@ -96,9 +96,11 @@ enum {
 
 #define CRYPT_ALGO_NUMBER (CRYPT_ALGO_MAX - CRYPT_ALGO_MIN + 1)
 
+#define CRYPT_KEY_SIGNATURE_SIZE 16
+
 #pragma pack(push, r1, 1)
 typedef struct _CRYPT_KEY {
-    UCHAR signature[16];   // md5 hash
+    UCHAR signature[CRYPT_KEY_SIGNATURE_SIZE];   // md5 hash
     UCHAR shu3[CRYPT_KEY_SIZE];
     UCHAR shu8[CRYPT_KEY_SIZE];
     CHAR  algo[CRYPT_SLOT_NUMBER];

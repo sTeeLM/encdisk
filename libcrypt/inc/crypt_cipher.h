@@ -26,13 +26,6 @@ struct rc6_key {
 };
 #endif
 
-#ifdef LTC_SAFERP
-struct saferp_key {
-   UCHAR K[33][16];
-   LONG rounds;
-};
-#endif
-
 #ifdef LTC_RIJNDAEL
 struct rijndael_key {
    ULONG eK[60], dK[60];
@@ -40,19 +33,6 @@ struct rijndael_key {
 };
 #endif
 
-#ifdef LTC_KSEED
-struct kseed_key {
-    ULONG K[32], dK[32];
-};
-#endif
-
-#ifdef LTC_KASUMI
-struct kasumi_key {
-    ULONG KLi1[8], KLi2[8],
-            KOi1[8], KOi2[8], KOi3[8],
-            KIi1[8], KIi2[8], KIi3[8];
-};
-#endif
 
 #ifdef LTC_XTEA
 struct xtea_key {
@@ -73,33 +53,6 @@ struct xtea_key {
 #endif
 #endif
 
-#ifdef LTC_SAFER
-#define LTC_SAFER_K64_DEFAULT_NOF_ROUNDS     6
-#define LTC_SAFER_K128_DEFAULT_NOF_ROUNDS   10
-#define LTC_SAFER_SK64_DEFAULT_NOF_ROUNDS    8
-#define LTC_SAFER_SK128_DEFAULT_NOF_ROUNDS  10
-#define LTC_SAFER_MAX_NOF_ROUNDS            13
-#define LTC_SAFER_BLOCK_LEN                  8
-#define LTC_SAFER_KEY_LEN     (1 + LTC_SAFER_BLOCK_LEN * (1 + 2 * LTC_SAFER_MAX_NOF_ROUNDS))
-typedef UCHAR safer_block_t[LTC_SAFER_BLOCK_LEN];
-typedef UCHAR safer_key_t[LTC_SAFER_KEY_LEN];
-struct safer_key { safer_key_t key; };
-#endif
-
-#ifdef LTC_RC2
-struct rc2_key { unsigned xkey[64]; };
-#endif
-
-#ifdef LTC_DES
-struct des_key {
-    ULONG ek[32], dk[32];
-};
-
-struct des3_key {
-    ULONG ek[3][32], dk[3][32];
-};
-#endif
-
 #ifdef LTC_CAST5
 struct cast5_key {
     ULONG K[32], keylen;
@@ -112,46 +65,8 @@ struct noekeon_key {
 };
 #endif
 
-#ifdef LTC_SKIPJACK 
-struct skipjack_key {
-    UCHAR key[10];
-};
-#endif
-
-#ifdef LTC_KHAZAD
-struct khazad_key {
-   ULONG64 roundKeyEnc[8 + 1]; 
-   ULONG64 roundKeyDec[8 + 1]; 
-};
-#endif
-
-#ifdef LTC_ANUBIS
-struct anubis_key { 
-   INT keyBits; 
-   INT R; 
-   ULONG roundKeyEnc[18 + 1][4]; 
-   ULONG roundKeyDec[18 + 1][4]; 
-}; 
-#endif
-
-#ifdef LTC_MULTI2
-struct multi2_key {
-    INT N;
-    ULONG uk[8];
-};
-#endif
 
 typedef union Symmetric_key {
-#ifdef LTC_DES
-   struct des_key des;
-   struct des3_key des3;
-#endif
-#ifdef LTC_RC2
-   struct rc2_key rc2;
-#endif
-#ifdef LTC_SAFER
-   struct safer_key safer;
-#endif
 #ifdef LTC_TWOFISH
    struct twofish_key  twofish;
 #endif
@@ -163,9 +78,6 @@ typedef union Symmetric_key {
 #endif
 #ifdef LTC_RC6
    struct rc6_key      rc6;
-#endif
-#ifdef LTC_SAFERP
-   struct saferp_key   saferp;
 #endif
 #ifdef LTC_RIJNDAEL
    struct rijndael_key rijndael;
@@ -179,24 +91,6 @@ typedef union Symmetric_key {
 #ifdef LTC_NOEKEON
    struct noekeon_key  noekeon;
 #endif   
-#ifdef LTC_SKIPJACK
-   struct skipjack_key skipjack;
-#endif
-#ifdef LTC_KHAZAD
-   struct khazad_key   khazad;
-#endif
-#ifdef LTC_ANUBIS
-   struct anubis_key   anubis;
-#endif
-#ifdef LTC_KSEED
-   struct kseed_key    kseed;
-#endif
-#ifdef LTC_KASUMI
-   struct kasumi_key   kasumi;
-#endif  
-#ifdef LTC_MULTI2
-   struct multi2_key   multi2;
-#endif
    void   *data;
 } symmetric_key;
 

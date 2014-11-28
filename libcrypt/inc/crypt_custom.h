@@ -28,10 +28,8 @@
 #ifndef LTC_NO_CIPHERS
 #define LTC_NOP
 #define LTC_BLOWFISH
-#define LTC_RC2
 #define LTC_RC5
 #define LTC_RC6
-#define LTC_SAFERP
 #define LTC_RIJNDAEL
 #define LTC_XTEA
 /* _TABLES tells it to use tables during setup, _SMALL means to use the smaller scheduled key format
@@ -45,16 +43,8 @@
 #endif
 /* #define LTC_TWOFISH_SMALL */
 /* LTC_DES includes EDE triple-LTC_DES */
-#define LTC_DES
 #define LTC_CAST5
 #define LTC_NOEKEON
-#define LTC_SKIPJACK
-#define LTC_SAFER
-#define LTC_KHAZAD
-#define LTC_ANUBIS
-#define LTC_ANUBIS_TWEAK
-#define LTC_KSEED
-#define LTC_KASUMI
 
 #endif /* LTC_NO_CIPHERS */
 
@@ -89,7 +79,7 @@
 #ifndef LTC_NO_HASHES 
 
 #define LTC_CHC_HASH
-#define LTC_WHIRLPOOL
+#define LTC_CRC32
 #define LTC_SHA512
 #define LTC_SHA384
 #define LTC_SHA256

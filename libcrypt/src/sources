@@ -3,6 +3,7 @@ TARGETPATH=..\obj\$(DDKBUILDENV)
 TARGETTYPE=DRIVER_LIBRARY
 INCLUDES=..\inc
 SOURCES= \
+crc32.c \
 utils.c \
 shuffle.c \
 base64_encode.c \

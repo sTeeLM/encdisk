@@ -35,51 +35,424 @@ static const CHAR * GetETA(time_t begin, ULONGLONG DoCount, ULONGLONG ToTal)
     return ctime(&finish);
 }
 
+static ULONG
+CalcuteSubSlotCrc(PENC_RESUME_SLOT_BODY SlotBody)
+{
+    LPBYTE p = (LPBYTE)SlotBody;
+    hash_state state;
+    ULONG size = sizeof(ENC_RESUME_SLOT_BODY);
+    ULONG ret;
+
+    p += sizeof(SlotBody->CRC);
+    size -= sizeof(SlotBody->CRC);
+    if(!SlotBody->BigBlock) {
+        size -= (ENC_CLUSTER_BLOCK_COUNT - 1) * CRYPT_CLUSTER_SIZE;
+    }
+    crc32_init(&state);
+    crc32_process(&state, p, size);
+    crc32_done(&state, (UCHAR *)&ret);
+    return ret;
+}
+
 static INT SaveResumeBlock(PENC_RESUME_SLOT Slot, HANDLE hResumeFile, ULONG ThreadIndex, ULONGLONG ClusterIndex, 
             ULONGLONG Size, LPVOID Data)
 {
     LARGE_INTEGER Pos;
     DWORD Junk;
 
-    Slot->Tag = ENC_RESUME_TAG_PROCESSING;
-    Slot->BigBlock = Size == ENC_SLOT_SIZE ? 1 : 0;
-    Slot->Index = ClusterIndex;
-    memcpy(Slot->Data, Data, (size_t)Size);
-
     Pos.QuadPart = sizeof(ENC_RESUME_HEADER) + ThreadIndex * sizeof(ENC_RESUME_SLOT);
+    Pos.QuadPart += sizeof(ENC_RESUME_SLOT_HEADER) + Slot->Header.SubSlotIndex * sizeof(ENC_RESUME_SLOT_BODY);
+
+    Slot->Body[Slot->Header.SubSlotIndex].NotEmpty = 1;
+    Slot->Body[Slot->Header.SubSlotIndex].BigBlock = Size == ENC_SLOT_BUFFER_SIZE ? 1 : 0;
+    Slot->Body[Slot->Header.SubSlotIndex].Index = ClusterIndex;
+
+    memcpy(Slot->Body[Slot->Header.SubSlotIndex].Data, Data, (size_t)Size);
+    Slot->Body[Slot->Header.SubSlotIndex].CRC = CalcuteSubSlotCrc(&Slot->Body[Slot->Header.SubSlotIndex]);
+    
     if(!SetFilePointerEx(hResumeFile, Pos, NULL, FILE_BEGIN)) {
         return -1;
     }
-    if(!WriteFile(hResumeFile, Slot, sizeof(ENC_RESUME_SLOT), &Junk, NULL) || Junk != sizeof(ENC_RESUME_SLOT)) {
+    if(!WriteFile(hResumeFile, &Slot->Body[Slot->Header.SubSlotIndex], sizeof(ENC_RESUME_SLOT_BODY), &Junk, NULL) 
+        || Junk != sizeof(ENC_RESUME_SLOT_BODY)) {
         return -1;
     }
     if(!FlushFileBuffers(hResumeFile)) {
         return -1;
     }
+    Slot->Header.SubSlotIndex = (Slot->Header.SubSlotIndex + 1) % ENC_RESUME_HISTORY_DEEP;
+
     return 0;
 }
 
-static INT MarkResumeBlockDone(PENC_RESUME_SLOT Slot, HANDLE hResumeFile, ULONG ThreadIndex, ULONGLONG ClusterIndex, 
-            ULONGLONG Size, LPVOID Data)
+static INT FixImageFile(
+    HANDLE hFile, 
+    PENC_RESUME_FILE Resume, 
+    PCRYPT_CONTEXT DecryptContext,
+    PCRYPT_CONTEXT EncryptContext )
 {
-    LARGE_INTEGER Pos;
+    DWORD i;
+    LARGE_INTEGER Begin;
     DWORD Junk;
+    LPBYTE Buffer1 = NULL;
+    LPBYTE Buffer2 = NULL;
+    ULONGLONG ClusterCount = ENC_CLUSTER_BLOCK_COUNT;
+    ULONGLONG j;
+    INT nRet = -1;
 
-    Slot->Tag = ENC_RESUME_TAG_DONE;
-    Slot->BigBlock = Size == ENC_SLOT_SIZE ? 1 : 0;
-    Slot->Index = ClusterIndex;
+    for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
+        if(Resume->Slot[i].Header.Tag == ENC_RESUME_SLOT_TAG_EMPTY) {
+            PrintMessage("Slot %d: do nothing\n", i);
+            // do nothing
+        } else if(Resume->Slot[i].Header.Tag == ENC_RESUME_SLOT_TAG_GOOD) {
+            PrintMessage("Slot %d: process one step %I64u -> %I64u\n", 
+                i,
+                Resume->Slot[i].Header.Index,
+                Resume->Slot[i].Body[Resume->Slot[i].Header.SubSlotIndex].BigBlock ?
+                    (Resume->Slot[i].Header.Index + ENC_CLUSTER_BLOCK_COUNT) :
+                    (Resume->Slot[i].Header.Index + 1)
+                );
+            ClusterCount = Resume->Slot[i].Body[Resume->Slot[i].Header.SubSlotIndex].BigBlock ?
+                ENC_CLUSTER_BLOCK_COUNT : 1;
 
-    Pos.QuadPart = sizeof(ENC_RESUME_HEADER) + ThreadIndex * sizeof(ENC_RESUME_SLOT);
-    if(!SetFilePointerEx(hResumeFile, Pos, NULL, FILE_BEGIN)) {
-        return -1;
+            Begin.QuadPart = Resume->Slot[i].Header.Index * CRYPT_CLUSTER_SIZE;
+            if(!SetFilePointerEx(hFile, Begin, NULL, FILE_BEGIN)) {
+                PrintLastError("FixImageFile:");
+                goto err;
+            }
+
+            if((Buffer2 = malloc((size_t)(CRYPT_CLUSTER_SIZE * ClusterCount))) == NULL) {
+                SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                PrintLastError("FixImageFile:");
+                goto err;
+            }
+
+            
+
+            Buffer1 = (LPBYTE)(Resume->Slot[i].Body[Resume->Slot[i].Header.SubSlotIndex].Data);
+
+            for(j = 0 ; j < ClusterCount; j ++) {
+                if(NULL != DecryptContext) {
+                    if(CryptDecryptCluster(DecryptContext, Buffer1 + j * CRYPT_CLUSTER_SIZE,
+                        Buffer2 + j * CRYPT_CLUSTER_SIZE, Resume->Slot[i].Header.Index + j) != CRYPT_OK) {
+                        goto err;
+                    }
+                } else {
+                    memcpy(Buffer2 + j * CRYPT_CLUSTER_SIZE, Buffer1 + j * CRYPT_CLUSTER_SIZE, CRYPT_CLUSTER_SIZE);
+                }
+                if(NULL != EncryptContext) {
+                    if(CryptEncryptCluster(EncryptContext, Buffer2 + j * CRYPT_CLUSTER_SIZE, 
+                        Buffer1 + j * CRYPT_CLUSTER_SIZE, Resume->Slot[i].Header.Index + j) != CRYPT_OK) {
+                        goto err;
+                    }
+                } else {
+                    memcpy(Buffer1 + j * CRYPT_CLUSTER_SIZE, Buffer2 + j * CRYPT_CLUSTER_SIZE, CRYPT_CLUSTER_SIZE);
+                }
+            }
+            
+            if(!WriteFile(hFile, Buffer1, (DWORD)(CRYPT_CLUSTER_SIZE * ClusterCount), &Junk, NULL)
+                ||Junk != CRYPT_CLUSTER_SIZE * ClusterCount) {
+                PrintLastError("FixImageFile:");
+                goto err;
+            }
+            if(!FlushFileBuffers(hFile)) {
+                PrintLastError("FixImageFile:");
+                goto err;
+            }
+
+            
+
+            DoCount += (Resume->Slot[i].Header.Index - Resume->Slot[i].Header.From);
+
+            Resume->Slot[i].Header.Index += Resume->Slot[i].Body[Resume->Slot[i].Header.SubSlotIndex].BigBlock ?
+                ENC_CLUSTER_BLOCK_COUNT : 1;
+            Resume->Slot[i].Header.SubSlotIndex = (Resume->Slot[i].Header.SubSlotIndex + 1) % ENC_RESUME_HISTORY_DEEP;
+
+        }
+        
     }
-    if(!WriteFile(hResumeFile, Slot, sizeof(ENC_RESUME_SLOT), &Junk, NULL) || Junk != sizeof(ENC_RESUME_SLOT)) {
-        return -1;
+    nRet = 0;
+
+err:
+    if(NULL != Buffer2) {
+        free(Buffer2);
+        Buffer2 = NULL;
     }
-    if(!FlushFileBuffers(hResumeFile)) {
-        return -1;
+    return nRet;
+}
+
+static const UCHAR NULL_KEY_ID[CRYPT_KEY_SIGNATURE_SIZE] = {0};
+
+// check resume file
+// 1. no such file: create one
+// 2. has one: check ThreadNum, FileSize, DecryptContext, EncryptContext
+// 
+static PENC_RESUME_FILE LoadResumeFile(
+    const CHAR * FileName, 
+    ULONG ThreadNum, 
+    LARGE_INTEGER FileSize, 
+    PCRYPT_CONTEXT DecryptContext, 
+    PCRYPT_CONTEXT EncryptContext)
+{
+    HANDLE hResumeFile = INVALID_HANDLE_VALUE;
+    CHAR ResumeFile[MAX_PATH];
+    ULONG ResumeFileSize;
+    BOOL bIsNew = FALSE;
+    ULONGLONG Cluster;
+    ULONG ThreadCnt = 0;
+    PENC_RESUME_FILE Resume;
+    INT nRet = -1;
+    DWORD JunkBytes;
+    ULONG i;
+    ULONGLONG From[ENC_DISK_MAX_THREAD_CNT] = {0};
+    ULONGLONG To[ENC_DISK_MAX_THREAD_CNT] = {0};
+
+
+   
+    // calc slot cnt, from, to
+    Cluster = (FileSize.QuadPart / CRYPT_CLUSTER_SIZE / ThreadNum);
+    if(Cluster != 0) {
+        for(i = 0; i < ThreadNum; i ++) {
+            From[i] = i * Cluster;
+            To[i] = (i+1) * Cluster - 1;
+        }
     }
-    return 0;
+    if(Cluster * ThreadNum != FileSize.QuadPart / CRYPT_CLUSTER_SIZE) {
+        From[i] = i * Cluster;
+        To[i] = FileSize.QuadPart / CRYPT_CLUSTER_SIZE - 1;
+        i ++;
+    }
+    ThreadCnt = i;
+
+    ResumeFileSize = sizeof(ENC_RESUME_HEADER) + ThreadCnt * sizeof(ENC_RESUME_SLOT);
+    if((Resume = malloc(ResumeFileSize)) == NULL) {
+        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+        PrintLastError("LoadResumeFile:");
+        goto err;
+    }
+
+    // create file name
+    _snprintf(ResumeFile, sizeof(ResumeFile), "%s"ENC_DISK_RESUME_FILE_SURFIX, FileName);
+
+    // open data file
+    hResumeFile = CreateFile(
+        ResumeFile,
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        0,
+        NULL
+        );
+    if(hResumeFile == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_NOT_FOUND) {
+        PrintLastError("LoadResumeFile:");
+        goto err;
+    }
+
+    if(hResumeFile == INVALID_HANDLE_VALUE) {
+        hResumeFile = CreateFile(
+            ResumeFile,
+            GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            NULL,
+            CREATE_NEW,
+            0,
+            NULL
+            );
+        if(hResumeFile == INVALID_HANDLE_VALUE) {
+            PrintLastError("LoadResumeFile:");
+            goto err;
+        }
+        bIsNew = TRUE;
+    }
+
+    if(bIsNew) { // create one
+        PrintMessage("Resume file (%s) not found, create new one.\n", ResumeFile);
+        memset(Resume, 0, ResumeFileSize);
+        Resume->Header.Signature = ENC_RESUME_FILE_SIGNATURE;
+        if(NULL != DecryptContext) {
+            memcpy(Resume->Header.DecryptKeyID, DecryptContext->key.signature, sizeof(Resume->Header.DecryptKeyID));
+        }
+        if(NULL != EncryptContext) {
+            memcpy(Resume->Header.EncryptKeyID, EncryptContext->key.signature, sizeof(Resume->Header.EncryptKeyID));
+        }
+        Resume->Header.SlotCnt = ThreadCnt;
+        Resume->Header.FileSize = FileSize;
+        for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
+            Resume->Slot[i].Header.From = From[i];
+            Resume->Slot[i].Header.To = To[i];
+            Resume->Slot[i].Header.Index = From[i];
+            Resume->Slot[i].Header.SubSlotIndex = 0;
+            Resume->Slot[i].Header.Tag = ENC_RESUME_SLOT_TAG_EMPTY;
+        }
+
+        if(!WriteFile(hResumeFile, Resume, ResumeFileSize, &JunkBytes, NULL) || 
+            JunkBytes != ResumeFileSize) {
+            PrintLastError("LoadResumeFile:");
+            goto err;
+        }
+
+        nRet = 0;
+
+    } else { // check 
+        LARGE_INTEGER RealResumeFileSize;
+        INT j;
+
+        PrintMessage("Resume file (%s) found.\n", ResumeFile);
+
+        // get real file size
+        if(!GetFileSizeEx(hResumeFile, &RealResumeFileSize)) {
+            PrintLastError("LoadResumeFile:");
+            goto err;
+        }
+
+        if(RealResumeFileSize.QuadPart < sizeof(ENC_RESUME_HEADER)) {
+            PrintMessage("LoadResumeFile: file size too small < %d\n", sizeof(ENC_RESUME_HEADER));
+            goto err;
+        }
+
+        if(!ReadFile(hResumeFile, Resume, (DWORD)RealResumeFileSize.QuadPart, &JunkBytes, NULL) || 
+            JunkBytes != RealResumeFileSize.QuadPart) {
+            PrintLastError("LoadResumeFile:");
+            goto err;
+        }
+
+        if(Resume->Header.Signature != ENC_RESUME_FILE_SIGNATURE) {
+            PrintMessage("LoadResumeFile: Invalid signature\n");
+            goto err;
+        }
+        if(Resume->Header.SlotCnt != ThreadCnt) {
+            PrintMessage("LoadResumeFile: Invalid thread cnt %d, should be %d\n", Resume->Header.SlotCnt, ThreadCnt);
+            goto err;
+        }
+
+        if(Resume->Header.FileSize.QuadPart != FileSize.QuadPart) {
+            PrintMessage("LoadResumeFile: Invalid data file size %I64u, should be %I64u\n", 
+                Resume->Header.FileSize.QuadPart, FileSize.QuadPart);
+            goto err;
+        }
+
+        if(RealResumeFileSize.QuadPart != ResumeFileSize) {
+            PrintMessage("LoadResumeFile: file size %I64u miss match %d\n", RealResumeFileSize.QuadPart, ResumeFileSize);
+            goto err;
+        }
+        
+        if(NULL != DecryptContext) {
+            if(memcmp(Resume->Header.DecryptKeyID, DecryptContext->key.signature, sizeof(Resume->Header.DecryptKeyID)) != 0) {
+                PrintMessage("LoadResumeFile: Invalid decrypt context\n");
+                goto err;
+            }
+        } else if(memcmp(Resume->Header.DecryptKeyID, NULL_KEY_ID, sizeof(Resume->Header.DecryptKeyID)) != 0) {
+            PrintMessage("LoadResumeFile: Invalid decrypt context\n");
+            goto err;
+        }
+
+        if(NULL != EncryptContext) {
+            if(memcmp(Resume->Header.EncryptKeyID, EncryptContext->key.signature, sizeof(Resume->Header.EncryptKeyID)) != 0) {
+                PrintMessage("LoadResumeFile: Invalid encrypt context\n");
+                goto err;
+            }
+        } else if(memcmp(Resume->Header.EncryptKeyID, NULL_KEY_ID, sizeof(Resume->Header.EncryptKeyID)) != 0) {
+            PrintMessage("LoadResumeFile: Invalid encrypt context\n");
+            goto err;
+        }
+
+        for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
+            ULONGLONG RealIndex = 0L;
+            CHAR RealSubSlotIndex = -1;
+            CHAR FirstBadSubSlotIndex = -1;
+            UCHAR EmptySubSlotCnt = 0;
+            UCHAR BadSubSlotCnt = 0;
+            UCHAR GoodSubSlotCnt = 0;
+
+            PrintMessage("Slot %d: [%I64u -> %I64u] :\n", i, Resume->Slot[i].Header.From, Resume->Slot[i].Header.To);
+
+            // check from to
+            if(Resume->Slot[i].Header.From != From[i]) {
+                PrintMessage("LoadResumeFile: Invalid begin offset %I64u, should be %I64u\n", Resume->Slot[i].Header.From, From[i]);
+                goto err;
+            }
+            if(Resume->Slot[i].Header.To != To[i]) {
+                PrintMessage("LoadResumeFile: Invalid end offset %I64u, should be %I64u\n", Resume->Slot[i].Header.To, To[i]);
+                goto err;
+            }
+
+            // find valid sub slot
+            for(j = 0 ; j < ENC_RESUME_HISTORY_DEEP; j ++) {
+                ULONG CRC;
+                CRC = CalcuteSubSlotCrc(&Resume->Slot[i].Body[j]);
+                PrintMessage("  Sub Slot: [%08x(%08x) | %d | %d | %I64u]\n", 
+                    Resume->Slot[i].Body[j].CRC, 
+                    CRC,
+                    Resume->Slot[i].Body[j].NotEmpty, 
+                    Resume->Slot[i].Body[j].BigBlock, 
+                    Resume->Slot[i].Body[j].Index);
+
+                if(Resume->Slot[i].Body[j].NotEmpty) {
+                    if(CRC != Resume->Slot[i].Body[j].CRC) {
+                        BadSubSlotCnt ++;
+                        if(FirstBadSubSlotIndex != -1) {
+                            FirstBadSubSlotIndex = (CHAR)j;
+                        }
+                    } else {
+                        // find bigest index of good slot
+                        GoodSubSlotCnt ++;
+                        if(Resume->Slot[i].Body[j].Index >= RealIndex) {
+                            RealSubSlotIndex = (CHAR)j;
+                            RealIndex = Resume->Slot[i].Body[j].Index;
+                        }
+                        // check Index
+                        if(RealIndex < From[i] || RealIndex > To[i] 
+                            || (Resume->Slot[i].Body[j].BigBlock == 1 && (RealIndex + ENC_CLUSTER_BLOCK_COUNT - 1) > To[i] )) {
+                            PrintMessage("LoadResumeFile: Invalid index %I64u\n", RealIndex);
+                            goto err;
+                        }
+                    }
+                } else {
+                    EmptySubSlotCnt ++;
+                }
+            }
+            if(EmptySubSlotCnt == ENC_RESUME_HISTORY_DEEP || 
+                (BadSubSlotCnt == 1 
+                && GoodSubSlotCnt == 0 
+                && EmptySubSlotCnt == (ENC_RESUME_HISTORY_DEEP - BadSubSlotCnt)
+                && FirstBadSubSlotIndex == 0)) {
+                Resume->Slot[i].Header.Tag = ENC_RESUME_SLOT_TAG_EMPTY;
+                PrintMessage("Slot %d empty\n", i);
+            } else if(GoodSubSlotCnt != 0) {
+                Resume->Slot[i].Header.Tag = ENC_RESUME_SLOT_TAG_GOOD;
+                Resume->Slot[i].Header.SubSlotIndex = RealSubSlotIndex;
+                Resume->Slot[i].Header.Index = RealIndex;
+                PrintMessage("Slot %d good, Index is %I64u, from sub slot %d\n", i, RealIndex, RealSubSlotIndex);
+            } else {
+                PrintMessage("Slot %d bad\n", i);
+                goto err;
+            }
+            
+        }
+        nRet = 0;
+    }
+
+err:
+
+    if(hResumeFile != INVALID_HANDLE_VALUE) {
+        CloseHandle(hResumeFile);
+        hResumeFile = INVALID_HANDLE_VALUE;
+    }
+    if(nRet != 0) {
+        if(NULL != Resume) {
+            free(Resume);
+            Resume = NULL;
+        }
+    }
+    return Resume;
+}
+
+static VOID DeleteResumeFile(const CHAR * FileName)
+{
+    CHAR ResumeFile[MAX_PATH];
+    _snprintf(ResumeFile, sizeof(ResumeFile), "%s"ENC_DISK_RESUME_FILE_SURFIX, FileName);
+    DeleteFile(ResumeFile);
 }
 
 static DWORD WINAPI ProcessWorker(LPVOID Param)
@@ -95,7 +468,7 @@ static DWORD WINAPI ProcessWorker(LPVOID Param)
     DWORD Ret = 1;
     ULONGLONG Start;
 
-    if(P->Resume.Index > P->Resume.To) {
+    if(P->Resume.Header.Index > P->Resume.Header.To) {
         Ret = 0;
         goto err;
     }
@@ -123,10 +496,10 @@ static DWORD WINAPI ProcessWorker(LPVOID Param)
         goto err;
     }
 
-    Start = P->Resume.Index;
+    Start = P->Resume.Header.Index;
     Begin.QuadPart = Start * CRYPT_CLUSTER_SIZE;
     Pos.QuadPart = Begin.QuadPart;
-    b = (P->Resume.To - Start + 1) / ClusterCount; /* how many big block? */
+    b = (P->Resume.Header.To - Start + 1) / ClusterCount; /* how many big block? */
     i = 0;
 
     if(!SetFilePointerEx(hFile, Begin, NULL, FILE_BEGIN)) {
@@ -182,14 +555,9 @@ again:
             goto err;
         }
         if(!FlushFileBuffers(hFile)) {
-            PrintLastError("FixImageFile:");
-            goto err;
-        }        
-        if(MarkResumeBlockDone(&P->Resume, P->hResumeFile, P->ThreadIndex, Start + i * ClusterCount, 
-            CRYPT_CLUSTER_SIZE * ClusterCount, Buffer1) != 0) {
             PrintLastError("ProcessFile:");
             goto err;
-        }
+        }        
 
         Pos.QuadPart += CRYPT_CLUSTER_SIZE * ClusterCount;
     }
@@ -197,7 +565,7 @@ again:
     // small block: process cluster one by one
     if(ClusterCount != 1) {
         i = b * ClusterCount;
-        b = P->Resume.To - Start + 1;
+        b = P->Resume.Header.To - Start + 1;
         ClusterCount = 1;
         goto again;
     }
@@ -225,9 +593,7 @@ static PENC_PROCESS_ARG ProcessFileBlock(
     const CHAR * FileName,
     PCRYPT_CONTEXT DecryptContext,
     PCRYPT_CONTEXT EncryptContext,
-    ULONGLONG From,
-    ULONGLONG To,
-    ULONGLONG Index
+    PENC_RESUME_SLOT Slot
     )
 {
     PENC_PROCESS_ARG Arg = NULL;
@@ -275,7 +641,7 @@ static PENC_PROCESS_ARG ProcessFileBlock(
         memcpy(Arg->EncryptContext, EncryptContext, sizeof(CRYPT_CONTEXT));
 
     // open resume file
-    _snprintf(ResumeFile, sizeof(ResumeFile), "%s.res", FileName);
+    _snprintf(ResumeFile, sizeof(ResumeFile), "%s"ENC_DISK_RESUME_FILE_SURFIX, FileName);
     Arg->hResumeFile = CreateFile(
         ResumeFile,
         GENERIC_READ | GENERIC_WRITE,
@@ -290,9 +656,7 @@ static PENC_PROCESS_ARG ProcessFileBlock(
         goto err;
     }
 
-    Arg->Resume.From = From;
-    Arg->Resume.To = To;
-    Arg->Resume.Index = Index;
+    memcpy(&Arg->Resume, Slot, sizeof(Arg->Resume));
 
     Arg->hThread = CreateThread(
         NULL,
@@ -309,7 +673,7 @@ static PENC_PROCESS_ARG ProcessFileBlock(
 
     Arg->ThreadIndex = ThreadIndex;
 
-    PrintMessage("Thread [%u][%I64u %I64u %I64u]\n", Arg->ThreadIndex, From, Index, To);
+    PrintMessage("Thread [%u][%I64u %I64u %I64u]\n", Arg->ThreadIndex, Slot->Header.From, Slot->Header.Index, Slot->Header.To);
 
     Ret = 0;
 err:
@@ -327,251 +691,6 @@ err:
     return Arg;
 }
 
-static INT FixImageFile(HANDLE hFile, PENC_RESUME_FILE Resume)
-{
-    DWORD i;
-    LARGE_INTEGER Begin;
-    DWORD Junk;
-
-    for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
-        if(Resume->ResumeSlot[i].Tag == ENC_RESUME_TAG_EMPTY) {
-            PrintMessage("Slot %d: do nothing\n", i);
-            // do nothing
-        } else if(Resume->ResumeSlot[i].Tag == ENC_RESUME_TAG_PROCESSING) {
-            // copy resume data back to hFile
-            // reset start point to Index
-            PrintMessage("Slot %d: copy data back to image(start %I64u size %u clusters)\n", i, 
-                Resume->ResumeSlot[i].Index, 
-                Resume->ResumeSlot[i].BigBlock == 1 ? ENC_CLUSTER_BLOCK_COUNT : 1);
-            Begin.QuadPart = Resume->ResumeSlot[i].Index * CRYPT_CLUSTER_SIZE;
-            if(!SetFilePointerEx(hFile, Begin, NULL, FILE_BEGIN)) {
-                PrintLastError("FixImageFile:");
-                return -1;
-            }
-            if(!WriteFile(hFile, Resume->ResumeSlot[i].Data, 
-                Resume->ResumeSlot[i].BigBlock == 1 ? ENC_CLUSTER_BLOCK_COUNT * CRYPT_CLUSTER_SIZE 
-                    : CRYPT_CLUSTER_SIZE , &Junk, NULL)
-                || Junk != (Resume->ResumeSlot[i].BigBlock == 1 ? ENC_CLUSTER_BLOCK_COUNT * CRYPT_CLUSTER_SIZE 
-                    : CRYPT_CLUSTER_SIZE)) {
-                PrintLastError("FixImageFile:");
-                return -1;
-            } 
-            if(!FlushFileBuffers(hFile)) {
-                PrintLastError("FixImageFile:");
-                return -1;
-            }
-        } else if(Resume->ResumeSlot[i].Tag == ENC_RESUME_TAG_DONE) {
-            PrintMessage("Slot %d: move start point from %I64u to %I64u\n", i, 
-                Resume->ResumeSlot[i].Index,
-                Resume->ResumeSlot[i].BigBlock == 1 ? Resume->ResumeSlot[i].Index + ENC_CLUSTER_BLOCK_COUNT
-                    : Resume->ResumeSlot[i].Index + 1);
-            Resume->ResumeSlot[i].Index = Resume->ResumeSlot[i].BigBlock == 1 ? 
-            Resume->ResumeSlot[i].Index + ENC_CLUSTER_BLOCK_COUNT :
-            Resume->ResumeSlot[i].Index + 1;
-        }
-        DoCount += (Resume->ResumeSlot[i].Index - Resume->ResumeSlot[i].From);
-    }
-
-    return 0;
-}
-
-// check resume file
-// 1. no such file: create one
-// 2. has one: check ThreadNum, FileSize, DecryptContext, EncryptContext
-// 
-static PENC_RESUME_FILE LoadResumeFile(
-    const CHAR * FileName, 
-    ULONG ThreadNum, 
-    LARGE_INTEGER FileSize, 
-    PCRYPT_CONTEXT DecryptContext, 
-    PCRYPT_CONTEXT EncryptContext)
-{
-    HANDLE hResumeFile = INVALID_HANDLE_VALUE;
-    CHAR ResumeFile[MAX_PATH];
-    LARGE_INTEGER ResumeFileSize;
-    BOOL bIsNew = FALSE;
-    ULONGLONG Cluster;
-    ULONG ThreadCnt = 0;
-    PENC_RESUME_FILE Resume;
-    INT nRet = -1;
-    DWORD JunkBytes;
-    ULONG i;
-    ULONGLONG From[ENC_DISK_MAX_THREAD_CNT] = {0};
-    ULONGLONG To[ENC_DISK_MAX_THREAD_CNT] = {0};
-
-    if((Resume = malloc(sizeof(ENC_RESUME_FILE))) == NULL) {
-        goto err;
-    }
-    
-
-    // calc slot cnt, from, to
-    Cluster = (FileSize.QuadPart / CRYPT_CLUSTER_SIZE / ThreadNum);
-    if(Cluster != 0) {
-        for(i = 0; i < ThreadNum; i ++) {
-            From[i] = i * Cluster;
-            To[i] = (i+1) * Cluster - 1;
-        }
-    }
-    if(Cluster * ThreadNum != FileSize.QuadPart / CRYPT_CLUSTER_SIZE) {
-        From[i] = i * Cluster;
-        To[i] = FileSize.QuadPart / CRYPT_CLUSTER_SIZE - 1;
-        i ++;
-    }
-    ThreadCnt = i;
-
-    
-
-    // create file name
-    _snprintf(ResumeFile, sizeof(ResumeFile), "%s.res", FileName);
-
-    // open data file
-    hResumeFile = CreateFile(
-        ResumeFile,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL
-        );
-    if(hResumeFile == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_NOT_FOUND) {
-        PrintLastError("LoadResumeFile:");
-        goto err;
-    }
-
-    if(hResumeFile == INVALID_HANDLE_VALUE) {
-        hResumeFile = CreateFile(
-            ResumeFile,
-            GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            CREATE_NEW,
-            0,
-            NULL
-            );
-        if(hResumeFile == INVALID_HANDLE_VALUE) {
-            PrintLastError("LoadResumeFile:");
-            goto err;
-        }
-        bIsNew = TRUE;
-    }
-
-    if(bIsNew) { // create one
-        PrintMessage("No resume file (%s) found, create new one.\n", ResumeFile);
-        memset(Resume, 0, sizeof(ENC_RESUME_FILE));
-        Resume->Header.Signature = ENC_RESUME_FILE_SIGNATURE;
-        if(NULL != DecryptContext) {
-            memcpy(Resume->Header.DecryptKeyID, DecryptContext->key.signature, sizeof(Resume->Header.DecryptKeyID));
-        }
-        if(NULL != EncryptContext) {
-            memcpy(Resume->Header.EncryptKeyID, EncryptContext->key.signature, sizeof(Resume->Header.EncryptKeyID));
-        }
-        Resume->Header.SlotCnt = ThreadCnt;
-        Resume->Header.FileSize = FileSize;
-        for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
-            Resume->ResumeSlot[i].From = From[i];
-            Resume->ResumeSlot[i].To = To[i];
-            Resume->ResumeSlot[i].Index = From[i];
-        }
-
-        if(!WriteFile(hResumeFile, Resume, sizeof(ENC_RESUME_FILE), &JunkBytes, NULL) || 
-            JunkBytes != sizeof(ENC_RESUME_FILE)) {
-            PrintLastError("LoadResumeFile:");
-            goto err;
-        }
-
-        nRet = 0;
-
-    } else { // check 
-        PrintMessage("Resume file (%s) found.\n", ResumeFile);
-        if(!ReadFile(hResumeFile, Resume, sizeof(ENC_RESUME_FILE), &JunkBytes, NULL) || 
-            JunkBytes != sizeof(ENC_RESUME_FILE)) {
-            PrintLastError("LoadResumeFile:");
-            goto err;
-        }
-
-        if(Resume->Header.Signature != ENC_RESUME_FILE_SIGNATURE) {
-            PrintMessage("LoadResumeFile: Invalid resume file (signature)\n");
-            goto err;
-        }
-        if(Resume->Header.SlotCnt != ThreadCnt) {
-            PrintMessage("LoadResumeFile: Invalid resume file (thread cnt)\n");
-            goto err;
-        }
-        PrintMessage("SlotCnt is %u\n", Resume->Header.SlotCnt);
-
-        if(Resume->Header.FileSize.QuadPart != FileSize.QuadPart) {
-            PrintMessage("LoadResumeFile: Invalid resume file (file size)\n");
-            goto err;
-        }
-        PrintMessage("FileSize is %I64u\n", Resume->Header.FileSize.QuadPart);
-
-        if(NULL != DecryptContext) {
-            if(memcmp(Resume->Header.DecryptKeyID, DecryptContext->key.signature, sizeof(Resume->Header.DecryptKeyID)) != 0) {
-                PrintMessage("LoadResumeFile: Invalid resume file (decrypt context)\n");
-                goto err;
-            }
-        }
-
-        if(NULL != EncryptContext) {
-            if(memcmp(Resume->Header.EncryptKeyID, EncryptContext->key.signature, sizeof(Resume->Header.EncryptKeyID)) != 0) {
-                PrintMessage("LoadResumeFile: Invalid resume file (encrypt context)\n");
-                goto err;
-            }
-        }
-        for(i = 0 ; i < Resume->Header.SlotCnt; i ++) {
-            PrintMessage("Slot %d: [%I64u | %I64u | %I64u] %d %d\n", 
-                i, From[i], Resume->ResumeSlot[i].Index, 
-                To[i], Resume->ResumeSlot[i].Tag, Resume->ResumeSlot[i].BigBlock);
-
-            if(Resume->ResumeSlot[i].Tag != ENC_RESUME_TAG_PROCESSING 
-                && Resume->ResumeSlot[i].Tag != ENC_RESUME_TAG_DONE
-                && Resume->ResumeSlot[i].Tag != ENC_RESUME_TAG_EMPTY) {
-                    PrintMessage("LoadResumeFile: Invalid resume file (tag of slot %d)\n", i);
-                    goto err;
-            }
-            if(Resume->ResumeSlot[i].Index > (ULONGLONG)(FileSize.QuadPart / CRYPT_CLUSTER_SIZE)) {
-                PrintMessage("LoadResumeFile: Invalid resume file (index of slot %d too big)\n", i);
-                goto err;
-            }
-            if(Resume->ResumeSlot[i].Index < Resume->ResumeSlot[i].From || Resume->ResumeSlot[i].Index > Resume->ResumeSlot[i].To) {
-                PrintMessage("LoadResumeFile: Invalid resume file (index of slot %d not between from & to)\n", i);
-                goto err;
-            }
-            if(Resume->ResumeSlot[i].BigBlock && Resume->ResumeSlot[i].Index + ENC_CLUSTER_BLOCK_COUNT - 1 > Resume->ResumeSlot[i].To) {
-                PrintMessage("LoadResumeFile: Invalid resume file (index not valid on slot %d)\n", i);
-                goto err;
-            }
-            if(Resume->ResumeSlot[i].From != From[i] || Resume->ResumeSlot[i].To != To[i]) {
-                PrintMessage("LoadResumeFile: Invalid resume file (from & to of slot %d)\n", i);
-                goto err;
-            }
-        }
-
-        nRet = 0;
-    }
-
-err:
-
-    if(hResumeFile != INVALID_HANDLE_VALUE) {
-        CloseHandle(hResumeFile);
-        hResumeFile = INVALID_HANDLE_VALUE;
-    }
-    if(nRet != 0) {
-        if(NULL != Resume) {
-            free(Resume);
-            Resume = NULL;
-        }
-    }
-    return Resume;
-}
-
-static VOID DeleteResumeFile(const CHAR * FileName)
-{
-    CHAR ResumeFile[MAX_PATH];
-    _snprintf(ResumeFile, sizeof(ResumeFile), "%s.res", FileName);
-    DeleteFile(ResumeFile);
-}
 
 INT ProcessFile(const CHAR * FileName, 
     PCRYPT_CONTEXT DecryptContext, 
@@ -625,7 +744,7 @@ INT ProcessFile(const CHAR * FileName,
     }
 
     // fix data
-    if(FixImageFile(hFile, Resume) != 0) {
+    if(FixImageFile(hFile, Resume, DecryptContext, EncryptContext) != 0) {
         goto err;
     }
     
@@ -636,8 +755,7 @@ INT ProcessFile(const CHAR * FileName,
 
     ThreadCnt = 0;
     for(i = 0; i < Resume->Header.SlotCnt; i ++) {
-        Threads[i] = ProcessFileBlock(i, FileName, DecryptContext, EncryptContext,
-            Resume->ResumeSlot[i].From, Resume->ResumeSlot[i].To, Resume->ResumeSlot[i].Index);
+        Threads[i] = ProcessFileBlock(i, FileName, DecryptContext, EncryptContext, &Resume->Slot[i]);
         if(Threads[i] == NULL) {
             goto err;
         } else {

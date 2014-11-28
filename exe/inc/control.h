@@ -123,10 +123,14 @@ INT EncDiskStatus(PDEVICE_NUMBER DeviceNumber);
 
 BOOL RandInitialize();
 
-#define ENC_RESUME_FILE_SIGNATURE 0x11223344
+#define ENC_RESUME_FILE_SIGNATURE 0x55534552
 #define ENC_CLUSTER_BLOCK_COUNT 64
-#define ENC_SLOT_SIZE (ENC_CLUSTER_BLOCK_COUNT * CRYPT_CLUSTER_SIZE)
+#define ENC_SLOT_BUFFER_SIZE (ENC_CLUSTER_BLOCK_COUNT * CRYPT_CLUSTER_SIZE)
 #define ENC_DEFAULT_THREAD_NUM 4
+
+#define ENC_RESUME_HISTORY_DEEP 8
+
+#define ENC_DISK_RESUME_FILE_SURFIX ".resume"
 
 #pragma pack(push, r1, 1)
 typedef struct _ENC_RESUME_HEADER
@@ -139,19 +143,50 @@ typedef struct _ENC_RESUME_HEADER
 }ENC_RESUME_HEADER, *PENC_RESUME_HEADER;
 #pragma pack(pop, r1)
 
-#define ENC_RESUME_TAG_EMPTY 0
-#define ENC_RESUME_TAG_PROCESSING 1
-#define ENC_RESUME_TAG_DONE  2
+#define ENC_RESUME_SLOT_TAG_EMPTY 0
+// all sub slots has NotEmpty set to 0 or only has 1 bad sub slot at sub slot index 0
+// after load:
+// header.Tag is ENC_RESUME_SLOT_TAG_EMPTY
+// header.SlotIndex is 0
+// header.Index is header.From
+
+#define ENC_RESUME_SLOT_TAG_GOOD  1
+// fix at least one sub slot has good crc
+// after load:
+// header.Tag is ENC_RESUME_SLOT_TAG_GOOD
+// header.SlotIndex point to sub slot who has good crc and bigest index
+// header.Index index of sub slot who has good crc and bigest index
+
+#define ENC_RESUME_SLOT_TAG_BAD   2
+// all bodys has bad crc
+
+#pragma pack(push, r1, 1)
+typedef struct _ENC_RESUME_SLOT_HEADER
+{
+    CHAR Tag;        // fixed after load from disk, only valid in memory
+    CHAR SubSlotIndex;  // fixed after load from disk, only valid in memory
+    ULONGLONG From;
+    ULONGLONG Index; // fixed after load from disk, only valid in memory
+    ULONGLONG To;
+}ENC_RESUME_SLOT_HEADER, *PENC_RESUME_SLOT_HEADER;
+#pragma pack(pop, r1)
+
+#pragma pack(push, r1, 1)
+typedef struct _ENC_RESUME_SLOT_BODY
+{
+    ULONG CRC;      // crc of all slot exept crc, good
+    UCHAR NotEmpty; // always 1
+    UCHAR BigBlock;
+    ULONGLONG Index;
+    UCHAR Data[ENC_SLOT_BUFFER_SIZE]; // fill with 0 before fill real data
+}ENC_RESUME_SLOT_BODY, *PENC_RESUME_SLOT_BODY;
+#pragma pack(pop, r1)
 
 #pragma pack(push, r1, 1)
 typedef struct _ENC_RESUME_SLOT
 {
-    UCHAR Tag;
-    UCHAR BigBlock;
-    ULONGLONG From;
-    ULONGLONG Index;
-    ULONGLONG To;
-    UCHAR Data[ENC_SLOT_SIZE];
+    ENC_RESUME_SLOT_HEADER Header;
+    ENC_RESUME_SLOT_BODY   Body[ENC_RESUME_HISTORY_DEEP];
 }ENC_RESUME_SLOT, *PENC_RESUME_SLOT;
 #pragma pack(pop, r1)
 
@@ -159,7 +194,7 @@ typedef struct _ENC_RESUME_SLOT
 typedef struct _ENC_RESUME_FILE
 {
     ENC_RESUME_HEADER Header;
-    ENC_RESUME_SLOT ResumeSlot[ENC_DISK_MAX_THREAD_CNT];
+    ENC_RESUME_SLOT Slot[1];
 }ENC_RESUME_FILE, *PENC_RESUME_FILE;
 #pragma pack(pop, r1)
 
